@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
@@ -27,6 +28,7 @@ class NotificationController(private val context: Context) {
         const val EXTRA_ACTION = "action"
         const val EXTRA_GAME_ID = "game_id"
         const val EXTRA_SESSION_ID = "session_id"
+        const val EXTRA_RENDER_REVISION = "render_revision"
         const val ACTION_STOP = "STOP"
         const val ACTION_NO_OP = "NO_OP"
 
@@ -70,6 +72,7 @@ class NotificationController(private val context: Context) {
         if (!store.active || store.sessionGameId != store.selectedGameId || store.sessionId == 0L) {
             store.sessionId = maxOf(System.currentTimeMillis(), store.sessionId + 1L)
             store.sessionGameId = store.selectedGameId
+            store.renderRevision = 0L
         }
         store.active = true
         store.paused = false
@@ -81,14 +84,19 @@ class NotificationController(private val context: Context) {
         store.active = false
         store.paused = false
         store.sessionId += 1L
+        store.renderRevision = 0L
         NotificationManagerCompat.from(appContext).cancel(NOTIFICATION_ID)
     }
 
     fun handle(actionName: String?) = handle(actionName, null, null)
 
     fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?) {
-        val hasEnvelope = actionGameId != null || actionSessionId != null
-        if (hasEnvelope && (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || store.selectedGameId != store.sessionGameId)) return
+        handle(actionName, actionGameId, actionSessionId, null)
+    }
+
+    fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?, actionRevision: Long?) {
+        val hasEnvelope = actionGameId != null || actionSessionId != null || actionRevision != null
+        if (hasEnvelope && (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || actionRevision != null && actionRevision != store.renderRevision || store.selectedGameId != store.sessionGameId)) return
         if (actionName == ACTION_STOP) {
             stop()
             return
@@ -102,6 +110,9 @@ class NotificationController(private val context: Context) {
         if (game.apply(action)) {
             if (action == GameAction.RESET || action == GameAction.NEW_GAME) store.paused = false
             store.saveGame(game)
+            if (action != GameAction.RESET && action != GameAction.NEW_GAME) store.recordGameAction(game.id, game.render().isTerminal)
+        } else {
+            return
         }
         renderAndNotify()
     }
@@ -115,6 +126,7 @@ class NotificationController(private val context: Context) {
         }
         val game = store.loadGame()
         val state = game.render()
+        store.renderRevision += 1L
         val gameOver = !store.paused && isGameOver(state)
         val effectiveState = when {
             store.paused -> state.copy(
@@ -146,6 +158,7 @@ class NotificationController(private val context: Context) {
             setTextViewText(R.id.notificationCompactStatus, status)
             setTextViewText(R.id.notificationCompactScore, effectiveState.scoreLine)
             setTextViewText(R.id.notificationCompactHint, compactHint)
+            setViewVisibility(R.id.notificationCompactHint, View.GONE)
         }
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_arcade)
@@ -180,6 +193,7 @@ class NotificationController(private val context: Context) {
         setTextViewText(R.id.notificationGameStatus, status)
         setTextViewText(R.id.notificationGameSubtitle, state.subtitle)
         setTextViewText(R.id.notificationGameScore, state.scoreLine)
+        setViewVisibility(R.id.notificationGameSubtitle, if (state.cellButtons.isNotEmpty()) View.GONE else View.VISIBLE)
 
         val topIds = intArrayOf(R.id.notificationButton1, R.id.notificationButton2, R.id.notificationButton3, R.id.notificationButton4)
         topIds.forEachIndexed { index, id ->
@@ -193,7 +207,7 @@ class NotificationController(private val context: Context) {
             val action = state.buttonActions.getOrNull(index)
             if (label.isNotBlank() && action != null) {
                 setTextViewText(id, label)
-                setContentDescription(id, label)
+                setContentDescription(id, cellContentDescription(index, label))
                 setViewVisibility(id, View.VISIBLE)
                 setOnClickPendingIntent(id, pending(action, REQUEST_CODE_TOP_BASE + index))
             }
@@ -223,9 +237,22 @@ class NotificationController(private val context: Context) {
 
     private fun isGameOver(state: GameViewState): Boolean {
         if (state.isTerminal) return true
-        if (state.buttonActions.any { it == GameAction.NEW_GAME }) return true
-        return listOf("You win", "Draw", "Arcade wins", "Out of tries", "Correct —")
-            .any { marker -> state.subtitle.startsWith(marker, ignoreCase = true) }
+        if (state.phase == com.adbreak.arcade.core.GamePhase.WON || state.phase == com.adbreak.arcade.core.GamePhase.LOST || state.phase == com.adbreak.arcade.core.GamePhase.DRAW) return true
+        return state.buttonActions.any { it == GameAction.NEW_GAME }
+    }
+
+    private fun cellContentDescription(index: Int, label: String): String {
+        if (label.startsWith("COL", ignoreCase = true)) return "Column ${index + 1}"
+        val value = label.substringAfter(':', missingDelimiterValue = label).trim()
+        val state = when (value) {
+            "·" -> "empty"
+            "X" -> "X"
+            "O" -> "O"
+            "ON" -> "light on"
+            "0" -> "off"
+            else -> value
+        }
+        return "Cell ${index + 1}, $state"
     }
 
     private fun gameOverState(state: GameViewState): GameViewState {
@@ -257,12 +284,14 @@ class NotificationController(private val context: Context) {
         Intent(appContext, NotificationActionReceiver::class.java).apply {
             setAction(INTENT_ACTION)
             setPackage(appContext.packageName)
+            data = Uri.parse("adbreak://notification/$requestCode/${if (bindSession) store.sessionId else "noop"}/${store.renderRevision}")
             putExtra(EXTRA_ACTION, action)
             if (bindSession) {
                 putExtra(EXTRA_GAME_ID, store.sessionGameId)
                 putExtra(EXTRA_SESSION_ID, store.sessionId)
+                putExtra(EXTRA_RENDER_REVISION, store.renderRevision)
             }
         },
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 }
