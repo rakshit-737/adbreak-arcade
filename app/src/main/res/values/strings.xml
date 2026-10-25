@@ -5,6 +5,16 @@
     <string name="notification_title">AdBreak Arcade</string>
     <string name="notification_stop">Stop</string>
     <string name="notification_reset">Reset</string>
+    <string name="notification_new_round">New round</string>
     <string name="notification_pause">Pause</string>
     <string name="notification_resume">Resume</string>
+    <string name="notification_status_ready">Ready</string>
+    <string name="notification_status_playing">Playing</string>
+    <string name="notification_status_paused">Paused</string>
+    <string name="notification_status_game_over">Game over</string>
+    <string name="notification_paused_subtitle">Paused — resume when you are ready</string>
+    <string name="notification_hint_ready">Tap a control to begin</string>
+    <string name="notification_hint_playing">Expand to play</string>
+    <string name="notification_hint_paused">Resume when you are ready</string>
+    <string name="notification_hint_game_over">Start a new round</string>
 </resources>

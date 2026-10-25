@@ -14,12 +14,20 @@
         android:textSize="16sp"
         android:textStyle="bold" />
     <TextView
+        android:id="@+id/notificationGameStatus"
+        style="@style/NotificationStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp" />
+    <TextView
         android:id="@+id/notificationGameSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"
         android:textColor="@color/notification_secondary_text"
-        android:textSize="13sp" />
+        android:textSize="13sp"
+        android:maxLines="2"
+        android:ellipsize="end" />
     <TextView
         android:id="@+id/notificationGameScore"
         android:layout_width="match_parent"

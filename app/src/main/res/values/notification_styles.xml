@@ -10,6 +10,9 @@
         <item name="android:textColor">@color/notification_accent</item>
         <item name="android:textSize">12sp</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
     </style>
     <style name="NotificationCellRow">
         <item name="android:layout_width">match_parent</item>
@@ -25,6 +28,17 @@
         <item name="android:textColor">@color/notification_primary_text</item>
         <item name="android:textSize">12sp</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+    <style name="NotificationStatus">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/notification_accent</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
     </style>
     <style name="NotificationUtilityButton" parent="@android:style/Widget.Material.Button.Borderless">
         <item name="android:layout_width">wrap_content</item>
