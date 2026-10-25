@@ -22,6 +22,8 @@ jobs:
           packages: 'platform-tools'
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
       - name: Run checks and assemble debug and release validation artifacts
         run: ./gradlew check lintDebug lintRelease assembleDebug assembleRelease bundleRelease --stacktrace
       - name: Upload debug APK
