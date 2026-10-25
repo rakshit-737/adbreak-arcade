@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.AdBreakArcade" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/arcade_surface</item>
+        <item name="colorPrimary">@color/arcade_violet</item>
+        <item name="colorSecondary">@color/arcade_violet</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>
