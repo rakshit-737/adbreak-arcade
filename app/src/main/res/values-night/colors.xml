@@ -1,0 +1,11 @@
+<resources>
+    <color name="arcade_ink">#F3EFFA</color>
+    <color name="arcade_surface">#15131B</color>
+    <color name="arcade_card">#211E29</color>
+    <color name="arcade_lilac">#332A55</color>
+    <color name="arcade_violet">#B9A7FF</color>
+    <color name="notification_surface">#211E29</color>
+    <color name="notification_primary_text">#F3EFFA</color>
+    <color name="notification_secondary_text">#C8C0D2</color>
+    <color name="notification_accent">#C6B7FF</color>
+</resources>

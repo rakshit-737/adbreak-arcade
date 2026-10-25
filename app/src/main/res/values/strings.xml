@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">AdBreak Arcade</string>
+    <string name="notification_channel_name">Arcade controls</string>
+    <string name="notification_channel_description">Quiet controls for playing AdBreak Arcade</string>
+    <string name="notification_title">AdBreak Arcade</string>
+    <string name="notification_stop">Stop</string>
+    <string name="notification_reset">Reset</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_resume">Resume</string>
+</resources>

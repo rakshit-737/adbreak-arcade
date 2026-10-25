@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/notification_surface"
+    android:orientation="vertical"
+    android:padding="8dp">
+    <TextView
+        android:id="@+id/notificationCompactTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/notification_primary_text"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/notificationCompactScore"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/notification_accent"
+        android:textSize="13sp" />
+    <TextView
+        android:id="@+id/notificationCompactHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/notification_secondary_text"
+        android:textSize="12sp" />
+</LinearLayout>
