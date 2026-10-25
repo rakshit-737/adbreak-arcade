@@ -4,8 +4,14 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/arcade_surface</item>
+        <item name="android:windowBackground">@color/arcade_background</item>
         <item name="colorPrimary">@color/arcade_violet</item>
         <item name="colorSecondary">@color/arcade_violet</item>
+        <item name="colorSurface">@color/arcade_surface</item>
+        <item name="colorOnSurface">@color/arcade_ink</item>
+        <item name="colorSurfaceVariant">@color/arcade_surface_container</item>
+        <item name="colorOnSurfaceVariant">@color/arcade_on_surface_variant</item>
+        <item name="colorOutline">@color/arcade_outline</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>

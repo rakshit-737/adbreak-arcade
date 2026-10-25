@@ -10,15 +10,19 @@
         android:id="@+id/notificationGameTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="@color/notification_primary_text"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+         android:textColor="@color/notification_primary_text"
+         android:textSize="16sp"
+         android:textStyle="bold"
+         android:maxLines="1"
+         android:ellipsize="end" />
     <TextView
         android:id="@+id/notificationGameStatus"
         style="@style/NotificationStatus"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp" />
+         android:layout_height="wrap_content"
+         android:layout_marginTop="3dp"
+         android:maxLines="1"
+         android:ellipsize="end" />
     <TextView
         android:id="@+id/notificationGameSubtitle"
         android:layout_width="match_parent"
@@ -33,9 +37,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:textColor="@color/notification_accent"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+         android:textColor="@color/notification_accent"
+         android:textSize="18sp"
+         android:textStyle="bold"
+         android:maxLines="1"
+         android:ellipsize="end" />
 
     <LinearLayout
         android:id="@+id/notificationTopControls"

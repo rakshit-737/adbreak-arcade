@@ -2,6 +2,7 @@ package com.adbreak.arcade.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -34,6 +35,7 @@ import com.adbreak.arcade.trigger.SmartTriggerPollResult
 import com.adbreak.arcade.trigger.SmartTriggerSettings
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.adbreak.arcade.ui.game.GamePresentationCatalog
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -88,12 +90,102 @@ class MainActivity : AppCompatActivity() {
             Screen.ABOUT -> showAbout()
             Screen.SMART_TRIGGERS -> showSmartTriggers()
         }
+        updateNavigation()
+    }
+
+    private fun updateNavigation() {
+        if (!::content.isInitialized) return
+        val selected = when (screen) {
+            Screen.SMART_TRIGGERS -> R.id.navSettings
+            Screen.HOME -> R.id.navHome
+            Screen.LIBRARY -> R.id.navLibrary
+            Screen.SCORES -> R.id.navScores
+            Screen.SETTINGS -> R.id.navSettings
+            Screen.ABOUT -> R.id.navAbout
+        }
+        listOf(R.id.navHome, R.id.navLibrary, R.id.navScores, R.id.navSettings, R.id.navAbout).forEach { id ->
+            findViewById<MaterialButton>(id).apply {
+                isSelected = id == selected
+                setTextColor(getColor(if (isSelected) R.color.arcade_on_primary_container else R.color.arcade_on_surface_variant))
+                iconTint = ColorStateList.valueOf(getColor(if (isSelected) R.color.arcade_violet else R.color.arcade_on_surface_variant))
+            }
+        }
+    }
+
+    private fun progressCard(): View {
+        val level = store.arcadeLevel()
+        val xp = store.arcadeXpIntoLevel()
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            setBackgroundResource(R.drawable.bg_card)
+            addView(TextView(context).apply {
+                text = "ARCADE LEVEL $level  ·  ${store.totalXp()} XP"
+                textSize = 11f
+                setTextColor(getColor(R.color.arcade_violet))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+            addView(TextView(context).apply {
+                text = "Every meaningful move builds a local run. Nothing is locked behind progression."
+                textSize = 14f
+                setTextColor(getColor(R.color.arcade_on_surface_variant))
+                setPadding(0, dp(6), 0, dp(8))
+            })
+            addView(android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                max = 100
+                progress = xp
+                layoutParams = LinearLayout.LayoutParams(-1, dp(8))
+                contentDescription = "$xp percent toward arcade level ${level + 1}"
+            })
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(16)) }
+        }
+    }
+
+    private fun onboardingCard(): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            setBackgroundResource(R.drawable.bg_lilac_pill)
+            addView(TextView(context).apply {
+                text = "Start small. Play from the shade."
+                textSize = 21f
+                setTextColor(getColor(R.color.arcade_on_primary_container))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+            addView(TextView(context).apply {
+                text = "1  Choose a game\n2  Tap Start notification\n3  Pull down and expand AdBreak Arcade\n4  Use the visible controls"
+                textSize = 15f
+                setTextColor(getColor(R.color.arcade_on_primary_container))
+                setPadding(0, dp(9), 0, dp(12))
+            })
+            addView(button("Got it — show me the arcade") {
+                store.onboardingCompleted = true
+                showHome()
+            })
+            addView(button("Not now") {
+                store.onboardingCompleted = true
+                showHome()
+            })
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(16)) }
+        }
+    }
+
+    private fun statusBanner(message: String): View = TextView(this).apply {
+        text = message
+        textSize = 14f
+        setTextColor(getColor(R.color.arcade_on_surface_variant))
+        setPadding(dp(16), dp(14), dp(16), dp(14))
+        setBackgroundResource(R.drawable.bg_card)
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(18)) }
     }
 
     private fun showHome() {
         screen = Screen.HOME
+        updateNavigation()
         content.removeAllViews()
         heading("Make the waiting part yours", "Play an offline mini-game from the notification shade while your other app stays in front.")
+        content.addView(progressCard())
+        if (!store.onboardingCompleted) content.addView(onboardingCard())
         val game = store.loadGame()
         card(game, true)
         val status = when {
@@ -101,9 +193,14 @@ class MainActivity : AppCompatActivity() {
             !notification.canPost() -> "Notifications are unavailable — allow them in Android settings to play from the shade."
             else -> "Notification inactive — start a game below when you want a quiet break companion."
         }
-        text(status, 14, false)
+        content.addView(statusBanner(status))
         text("How it works", 19, true)
         text("Choose a game, tap Start notification, then pull down and expand AdBreak Arcade. Every move is a normal notification button. The app never detects, skips, blocks, or manipulates ads.", 15, false)
+        val recent = store.recentGameIds().mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
+        if (recent.isNotEmpty()) {
+            text("Recently played", 19, true)
+            recent.take(3).forEach { recentGame -> card(recentGame, recentGame.id == store.selectedGameId) }
+        }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             content.addView(button("Allow notifications") {
                 pendingStartGameId = store.selectedGameId
@@ -114,34 +211,57 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLibrary() {
         screen = Screen.LIBRARY
+        updateNavigation()
         content.removeAllViews()
         val count = GameRegistry.definitions.size
         heading("The arcade shelf", "$count offline games designed around real notification controls.")
+        val favorites = GameRegistry.definitions.filter { store.isFavorite(it.id) }
+        if (favorites.isNotEmpty()) {
+            text("Favorites", 19, true)
+            favorites.forEach { game -> card(game, game.id == store.selectedGameId) }
+        }
+        val recentIds = store.recentGameIds()
+        val recent = recentIds.mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
+        if (recent.isNotEmpty()) {
+            text("Recent", 19, true)
+            recent.forEach { game -> card(game, game.id == store.selectedGameId) }
+        }
+        text("All games", 19, true)
         GameRegistry.definitions.forEach { game -> card(game, game.id == store.selectedGameId) }
     }
 
     private fun showScores() {
         screen = Screen.SCORES
+        updateNavigation()
         content.removeAllViews()
         heading("Your run, kept local", "Best runs stay on this device. Nothing is uploaded.")
+        content.addView(progressCard())
         GameRegistry.definitions.forEach { definition ->
             val game = store.loadGame(definition.id)
+            val stats = store.statsFor(definition.id)
+            val presentation = GamePresentationCatalog.forGame(definition.id)
             val block = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(18), dp(16), dp(18), dp(16))
                 setBackgroundResource(R.drawable.bg_card)
             }
             block.addView(TextView(this).apply {
-                text = definition.title
+                text = "${presentation.motif}  ${definition.title}"
                 textSize = 17f
                 setTextColor(getColor(R.color.arcade_ink))
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             block.addView(TextView(this).apply {
-                text = game.render().scoreLine
+                text = if (stats.plays == 0) "Not played yet  ·  ${game.render().scoreLine}" else "${stats.plays} plays  ·  ${stats.actions} moves  ·  ${stats.roundsCompleted} completed"
                 textSize = 14f
-                setTextColor(getColor(R.color.arcade_ink))
+                setTextColor(getColor(R.color.arcade_on_surface_variant))
                 setPadding(0, dp(6), 0, 0)
+            })
+            block.addView(TextView(this).apply {
+                text = "${presentation.family.label} family  ·  ${if (store.isFavorite(definition.id)) "Favorite" else "Ready"}"
+                textSize = 11f
+                setTextColor(getColor(presentation.family.accent))
+                setPadding(0, dp(8), 0, 0)
             })
             content.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) })
         }
@@ -149,13 +269,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettings() {
         screen = Screen.SETTINGS
+        updateNavigation()
         content.removeAllViews()
         heading("Settings", "Keep the arcade quiet, clear, and under your control.")
         text("Notifications", 18, true)
         text(notificationStatus(), 15, false)
-        content.addView(button("Open notification settings") {
-            startActivity(android.content.Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
-        })
+        content.addView(button("Open notification settings") { openNotificationSettings() })
         content.addView(button("Stop active notification") { notification.stop(); showSettings() })
 
         text("Smart App Triggers", 18, true)
@@ -163,12 +282,14 @@ class MainActivity : AppCompatActivity() {
         content.addView(button("Configure Smart App Triggers") { showSmartTriggers() })
 
         text("Local game data", 18, true)
-        text("Resetting a game starts a fresh round while preserving its personal-best history.", 15, false)
+        text("Reset starts a fresh round. Local arcade stats and progression remain available here.", 15, false)
         content.addView(button("Reset selected game") { store.resetGame(store.selectedGameId); showSettings() })
+        content.addView(button("Clear selected game history") { store.clearGameHistory(store.selectedGameId); showSettings() })
     }
 
     private fun showSmartTriggers() {
         screen = Screen.SMART_TRIGGERS
+        updateNavigation()
         content.removeAllViews()
         val service = triggerService()
         heading("Smart App Triggers", "Prepare the game notification when a selected app becomes foreground-visible, where Android permits a lifecycle poll.")
@@ -264,10 +385,11 @@ class MainActivity : AppCompatActivity() {
         val icon = ImageView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(8) }
             setImageDrawable(runCatching { packageManager.getApplicationIcon(app.packageName) }.getOrNull() ?: getDrawable(R.drawable.ic_launcher))
-            contentDescription = "${app.label} icon"
+            contentDescription = null
         }
         val check = CheckBox(this).apply {
-            text = "${app.label}\n${app.packageName}"
+            text = app.label
+            contentDescription = "${app.label}, package ${app.packageName}"
             isChecked = app.packageName in selectedPackages
             minHeight = dp(52)
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
@@ -276,6 +398,7 @@ class MainActivity : AppCompatActivity() {
         row.addView(icon)
         row.addView(check)
         row.setOnClickListener { check.isChecked = !check.isChecked }
+        row.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         return row
     }
 
@@ -312,8 +435,21 @@ class MainActivity : AppCompatActivity() {
         else -> "Allowed but not running."
     }
 
+    private fun openNotificationSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            android.content.Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, NotificationController.CHANNEL_ID)
+        } else {
+            android.content.Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        startActivity(intent)
+    }
+
     private fun showAbout() {
         screen = Screen.ABOUT
+        updateNavigation()
         content.removeAllViews()
         heading("About AdBreak Arcade", "A small, offline arcade for the moments between everything else.")
         val intro = LinearLayout(this).apply {
@@ -364,6 +500,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun heading(title: String, subtitle: String) {
+        content.addView(textView("ADBREAK ARCADE  ·  ${screen.name.replace('_', ' ')}", 11, true).apply {
+            setTextColor(getColor(R.color.arcade_violet))
+            setPadding(0, 0, 0, dp(8))
+        })
         val titleView = textView(title, 30, true)
         ViewCompat.setAccessibilityHeading(titleView, true)
         content.addView(titleView)
@@ -371,27 +511,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun card(game: ArcadeGame, selected: Boolean) {
+        val presentation = GamePresentationCatalog.forGame(game.id)
         val block = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(20), dp(20), dp(20))
             setBackgroundResource(if (selected) R.drawable.bg_lilac_pill else R.drawable.bg_card)
         }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        top.addView(TextView(this).apply {
+            text = presentation.motif
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(getColor(presentation.family.accent))
+            setBackgroundResource(R.drawable.bg_violet_pill)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(36)).apply { marginEnd = dp(10) }
+        })
+        top.addView(TextView(this).apply {
+            text = "${presentation.family.label.uppercase()}  ·  ${if (selected) "CURRENT" else "READY"}"
+            textSize = 11f
+            setTextColor(getColor(presentation.family.accent))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+        })
+        top.addView(button(if (store.isFavorite(game.id)) "★" else "☆") {
+            store.toggleFavorite(game.id)
+            if (screen == Screen.HOME) showHome() else showLibrary()
+        }.apply {
+            contentDescription = if (store.isFavorite(game.id)) "Remove ${game.title} from favorites" else "Add ${game.title} to favorites"
+            minWidth = dp(48)
+            minHeight = dp(48)
+        })
+        block.addView(top)
         block.addView(TextView(this).apply {
             text = game.title
             textSize = 21f
             setTextColor(getColor(R.color.arcade_ink))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(14), 0, 0)
         })
         block.addView(TextView(this).apply {
             text = game.description
             textSize = 15f
+            setTextColor(getColor(R.color.arcade_on_surface_variant))
             setPadding(0, dp(7), 0, dp(12))
         })
         if (selected) {
             block.addView(TextView(this).apply {
-                text = "Selected game"
+                text = "Selected game · start from the notification"
                 textSize = 14f
-                setTextColor(getColor(R.color.arcade_violet))
+                setTextColor(getColor(R.color.arcade_on_primary_container))
                 setPadding(0, 0, 0, dp(8))
             })
         } else {
@@ -402,7 +573,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun text(value: String, size: Int, bold: Boolean) {
-        content.addView(textView(value, size, bold).apply { setPadding(0, 0, 0, dp(12)) })
+        content.addView(textView(value, size, bold).apply {
+            if (bold && size >= 18) ViewCompat.setAccessibilityHeading(this, true)
+            setPadding(0, 0, 0, dp(12))
+        })
     }
 
     private fun textInto(parent: LinearLayout, value: String, size: Int, bold: Boolean) {
@@ -431,6 +605,9 @@ class MainActivity : AppCompatActivity() {
             val gameId = pendingStartGameId
             pendingStartGameId = null
             if (gameId != null && notification.show()) showHome() else showSettings()
+        } else if (requestCode == this.requestCode) {
+            pendingStartGameId = null
+            showSettings()
         }
     }
 
