@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -27,7 +27,7 @@ jobs:
       - name: Run checks and assemble debug and release validation artifacts
         run: ./gradlew check lintDebug lintRelease assembleDebug assembleRelease bundleRelease --stacktrace
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: adbreak-arcade-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
