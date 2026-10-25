@@ -5,7 +5,16 @@ import org.junit.Test
 import org.json.JSONObject
 
 class ArcadeGamesTest {
-    @Test fun everyGameHasStableIdAndRenders() { GameRegistry.definitions.forEach { assertTrue(it.id.isNotBlank()); assertTrue(it.render().title.isNotBlank()) } }
+    @Test fun everyRegisteredGameHasStableIdAndCanBeRecreated() {
+        val games = GameRegistry.definitions
+        assertEquals(games.size, games.map { it.id }.toSet().size)
+        games.forEach {
+            assertTrue(it.id.isNotBlank())
+            assertTrue(it.render().title.isNotBlank())
+            assertEquals(it.id, GameRegistry.create(it.id).id)
+        }
+        assertEquals(17, games.size)
+    }
     @Test fun ticTacToeRejectsOccupiedMoveAndCanWin() { val game = TicTacToeGame(); assertTrue(game.apply(GameAction.CELL_1)); assertFalse(game.apply(GameAction.CELL_1)); assertTrue(game.apply(GameAction.RESET)); assertTrue(game.render().scoreLine.contains("·")) }
     @Test fun ticTacToeDetectsEveryWinLine() {
         val lines = listOf(intArrayOf(0, 1, 2), intArrayOf(3, 4, 5), intArrayOf(6, 7, 8), intArrayOf(0, 3, 6), intArrayOf(1, 4, 7), intArrayOf(2, 5, 8), intArrayOf(0, 4, 8), intArrayOf(2, 4, 6))

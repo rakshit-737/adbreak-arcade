@@ -13,7 +13,8 @@ data class GameViewState(
     val buttonActions: List<GameAction> = emptyList(),
     val cellButtons: List<String> = emptyList(),
     val cellActions: List<GameAction> = emptyList(),
-    val feedback: String = ""
+    val feedback: String = "",
+    val isTerminal: Boolean = false,
 )
 
 interface ArcadeGame {
