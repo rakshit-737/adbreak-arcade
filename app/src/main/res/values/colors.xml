@@ -6,6 +6,7 @@
     <color name="arcade_surface_dark">#15131B</color>
     <color name="arcade_lilac">#EEE9FF</color>
     <color name="arcade_card">#FFFFFF</color>
+    <color name="arcade_outline">#E6E2EF</color>
     <color name="notification_surface">#FFFBFF</color>
     <color name="notification_primary_text">#211B2B</color>
     <color name="notification_secondary_text">#625B6B</color>

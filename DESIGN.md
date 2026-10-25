@@ -15,3 +15,19 @@ controls and a separate expanded layout.
 - Notification content stays compact, quiet, and understandable without the app
   being open.
 - Dark mode is a first-class palette, not an inverted screenshot.
+
+## Smart App Trigger settings
+
+- Treat Usage access as a sensitive, opt-in capability.
+- Show clear disabled, permission-needed, active, and unavailable states.
+- Explain that selected package names and trigger history are stored locally.
+- Provide explicit controls for disabling triggers and clearing selected apps.
+- Never imply ad detection or inspection of another app's content.
+- State that trigger timing is best effort rather than guaranteed immediate behavior.
+
+## Expanded library
+
+- Library count and cards come from `GameRegistry`, never hard-coded copy.
+- Every game exposes a concise title, description, and notification-sized actions.
+- Test long labels, emoji, Unicode symbols, large font scale, dark mode, and
+  collapsed/expanded notification layouts on actual System UI.

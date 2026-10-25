@@ -3,11 +3,15 @@
 AdBreak Arcade is a native Kotlin Android mini-game app for playing short,
 offline games from the expanded notification shade while another app remains in
 the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
+Optional Smart App Triggers only observe foreground transitions for apps the user
+explicitly selects.
 
 ## What is implemented
 
-- Seven playable games: Tap Counter, Quick Math, Tic-Tac-Toe, Higher or Lower,
-  Memory Challenge, Word Scramble, and Number Sequence.
+- Seventeen playable games: Tap Counter, Quick Math, Tic-Tac-Toe, Higher or
+  Lower, Memory Challenge, Word Scramble, Number Sequence, Rock Paper Scissors,
+  Odd One Out, Emoji Decode, Trivia Blitz, Mastermind Mini, Nim, Connect Three,
+  Guess the Pattern, Anagram Challenge, and Lights Out Mini.
 - Shared game interface, registry, action model, JSON state versioning, and
   local `SharedPreferences` persistence.
 - Compact collapsed notification plus a separate expanded `RemoteViews` layout.
@@ -17,24 +21,29 @@ the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
 - Dark-mode-aware app and notification colors, Android 15 edge-to-edge insets,
   and app-owned launcher/status-bar icons.
 - JVM tests for core game rules, state restoration, malformed state rejection,
-  score/streak behavior, Tic-Tac-Toe lines/AI blocking, and notification-sized
-  action mapping.
+  score/streak behavior, Tic-Tac-Toe lines/AI blocking, notification-sized
+  action mapping, registry reachability, and Smart App Trigger polling guards.
 - A lightweight Android instrumentation smoke test for notification channel
   creation.
+- Optional Smart App Triggers settings for selecting launchable apps, granting
+  Usage access, choosing a game, configuring cooldown, and manually testing the
+  notification.
 
 ## Supported Android range
 
 - Minimum SDK: Android 8.0 / API 26.
 - Compile and target SDK: Android 16 / API 36.
-- The project was built in this workspace with Gradle 9.4.1 and JDK 25.0.1.
-  A current Android Studio installation with a supported JDK is recommended.
+- Android Gradle Plugin: 9.2.1. Gradle wrapper: 9.4.1. CI uses Temurin JDK
+  17; JDK 25.0.1 was verified for the local build in this workspace. Use a JDK
+  version supported by Gradle 9.4.1; “17 or newer” does not mean every future
+  JDK version is supported.
 
 ## Build prerequisites
 
 Install or configure:
 
-- JDK 17 or newer compatible with the Android Gradle Plugin. JDK 25.0.1 was
-  used for the verified local build.
+- JDK 17 for the reproducible CI toolchain, or another JDK version supported by
+  Gradle 9.4.1. JDK 25.0.1 was verified for the local build.
 - Android SDK packages:
   - `platforms;android-36`
   - `build-tools;36.0.0`
@@ -119,6 +128,23 @@ If notifications are denied, the app remains usable for browsing the game
 library and settings, but notification-native gameplay is unavailable until the
 permission and channel are enabled.
 
+## Smart App Triggers
+
+Smart App Triggers are disabled by default. Open **Settings → Configure Smart
+App Triggers**, read the explanation, grant Android **Usage access**, select
+launchable apps, choose the game and cooldown, then save the selection.
+
+The feature observes only foreground transitions for packages explicitly chosen
+by the user. It does not inspect app content or detect, skip, click, block, or
+manipulate advertisements. Selected package names and local duplicate/cooldown
+history stay in app preferences.
+
+Android does not provide a guaranteed immediate callback for every arbitrary
+foreground-app transition to an ordinary app. This implementation performs a
+best-effort lifecycle poll when AdBreak Arcade resumes or when the user uses the
+manual test action; it does not force the notification shade open or expanded.
+OEM background restrictions can further delay or prevent a poll.
+
 ## Device-testing checklist
 
 The local build and JVM tests are verified. This workspace did not have a
@@ -168,9 +194,16 @@ git push -u origin main
 
 ## Privacy and permissions
 
-The app has no network permission, account system, analytics, advertising SDK,
-contacts, location, camera, microphone, accessibility service, overlay, or
-notification-listener access. It stores only local game preferences and state.
+The app requests `POST_NOTIFICATIONS` for the game notification and
+`PACKAGE_USAGE_STATS` only for the opt-in Smart App Triggers feature. It has no
+network permission, account system, analytics, advertising SDK, contacts,
+location, camera, microphone, accessibility service, overlay, or
+notification-listener access.
+
+Without Smart App Triggers, it stores local game preferences and state. When
+Smart App Triggers are enabled, it additionally stores selected package names,
+scan/trigger timestamps, and duplicate-event history locally. No usage history
+is uploaded and no app content is inspected.
 
 ## Known platform limitations
 
@@ -182,3 +215,11 @@ versions and manufacturers.
 
 The release build is configured for minification but is not signed with a
 production keystore. Configure protected release signing before distribution.
+
+## Release status
+
+CI validates the debug build and uploads a debug APK. The release build uses
+minification and resource shrinking, but production release signing is not
+configured in this repository. An `app-release-unsigned.apk` is not a
+distributable release; configure a protected keystore outside the repository
+before publishing.

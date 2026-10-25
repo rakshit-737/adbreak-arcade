@@ -2,6 +2,7 @@
     <color name="arcade_ink">#F3EFFA</color>
     <color name="arcade_surface">#15131B</color>
     <color name="arcade_card">#211E29</color>
+    <color name="arcade_outline">#423B4D</color>
     <color name="arcade_lilac">#332A55</color>
     <color name="arcade_violet">#B9A7FF</color>
     <color name="notification_surface">#211E29</color>
