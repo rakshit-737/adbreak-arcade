@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">AdBreak Arcade</title>
+  <desc id="desc">A conceptual notification-first mini-game interface on a midnight violet instrument panel.</desc>
+  <rect width="1200" height="630" fill="#17141f"/>
+  <path d="M0 86h1200M0 544h1200M82 0v630M1118 0v630" stroke="#3a3347" stroke-width="1" opacity=".7"/>
+  <circle cx="1040" cy="90" r="180" fill="#7656E8" opacity=".12"/>
+  <g transform="translate(100 116)">
+    <text x="0" y="0" fill="#b9a7ff" font-family="monospace" font-size="15" letter-spacing="3">NOTIFICATION-FIRST MINI-GAMES</text>
+    <text x="0" y="96" fill="#f8f7fc" font-family="system-ui,sans-serif" font-weight="700" font-size="78">Make the</text>
+    <text x="0" y="178" fill="#f8f7fc" font-family="system-ui,sans-serif" font-weight="700" font-size="78">waiting part yours.</text>
+    <text x="2" y="242" fill="#c8c0d2" font-family="system-ui,sans-serif" font-size="24">17 short offline games, played from an</text>
+    <text x="2" y="276" fill="#c8c0d2" font-family="system-ui,sans-serif" font-size="24">expanded Android notification.</text>
+    <rect x="0" y="334" width="194" height="54" rx="27" fill="#7656E8"/>
+    <text x="97" y="369" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-weight="700" font-size="17">EXPLORE THE ARCADE</text>
+  </g>
+  <g transform="translate(790 128)">
+    <rect width="292" height="380" rx="30" fill="#211e29" stroke="#675a84" stroke-width="2"/>
+    <rect x="20" y="28" width="252" height="80" rx="16" fill="#302a3b"/>
+    <text x="40" y="52" fill="#b9a7ff" font-family="monospace" font-size="11" letter-spacing="1.5">ADBREAK ARCADE</text>
+    <text x="40" y="80" fill="#f8f7fc" font-family="system-ui,sans-serif" font-weight="700" font-size="21">Tap Counter</text>
+    <text x="40" y="98" fill="#c8c0d2" font-family="monospace" font-size="11">READY · 00 SCORE</text>
+    <rect x="20" y="126" width="252" height="224" rx="18" fill="#17141f" stroke="#3a3347"/>
+    <text x="42" y="160" fill="#7656E8" font-family="monospace" font-size="11" letter-spacing="2">EXPANDED</text>
+    <text x="42" y="198" fill="#f8f7fc" font-family="system-ui,sans-serif" font-weight="700" font-size="24">Make one move.</text>
+    <rect x="42" y="224" width="208" height="48" rx="12" fill="#7656E8"/>
+    <text x="146" y="255" text-anchor="middle" fill="#fff" font-family="monospace" font-size="15" letter-spacing="1">TAP</text>
+    <rect x="42" y="286" width="98" height="30" rx="15" fill="#302a3b"/>
+    <rect x="152" y="286" width="98" height="30" rx="15" fill="#302a3b"/>
+    <text x="91" y="306" text-anchor="middle" fill="#c8c0d2" font-family="monospace" font-size="10">RESET</text>
+    <text x="201" y="306" text-anchor="middle" fill="#c8c0d2" font-family="monospace" font-size="10">PAUSE</text>
+  </g>
+</svg>

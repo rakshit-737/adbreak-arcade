@@ -31,3 +31,29 @@ controls and a separate expanded layout.
 - Every game exposes a concise title, description, and notification-sized actions.
 - Test long labels, emoji, Unicode symbols, large font scale, dark mode, and
   collapsed/expanded notification layouts on actual System UI.
+
+## Website visual system
+
+The project website uses the same restrained violet identity as the Android app,
+expanded into a quiet intermission-console world: midnight instrument panels,
+fine calibration lines, compact mono state labels, and authored compact/expanded
+notification strata. Violet marks action and selection; it is not sprayed across
+every label. Light mode uses paper, ink, and lilac surfaces while dark mode uses
+midnight, raised card, and lavender text roles.
+
+The website's primary experience mode is **Persuade**. Its first viewport must
+make the notification mechanism visible, offer a working website demo, and keep
+the two honest actions—explore the games and inspect the source—above the fold.
+Conceptual notification artwork is labelled as such and never presented as an
+OEM screenshot. The published site uses `/adbreak-arcade/` as its Vite base path.
+
+Durable website rules:
+
+- Use semantic landmarks, visible focus, keyboard-operable controls, and 48px
+  target sizing for primary interactions.
+- Respect `prefers-reduced-motion`; reveal motion is enhancement, not required
+  content.
+- Keep Android limits visible: no ad detection claim, no forced shade opening,
+  no guaranteed trigger timing, and no promise of uninterrupted media playback.
+- Keep the verified debug APK clearly labelled as a testing artifact until
+  protected production signing exists.

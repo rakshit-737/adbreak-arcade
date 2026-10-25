@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://rakshit-737.github.io/adbreak-arcade/sitemap.xml

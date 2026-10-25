@@ -223,3 +223,30 @@ minification and resource shrinking, but production release signing is not
 configured in this repository. An `app-release-unsigned.apk` is not a
 distributable release; configure a protected keystore outside the repository
 before publishing.
+
+## Project website
+
+The static project website lives in `website/` and is deployed to GitHub Pages
+from `main` by `.github/workflows/deploy-pages.yml`.
+
+From the website directory:
+
+```powershell
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run dev
+```
+
+The Vite project uses `/adbreak-arcade/` as its production base path. The
+expected published site is:
+
+```text
+https://rakshit-737.github.io/adbreak-arcade/
+```
+
+The website labels the current `v1.1.0` debug APK as a testing artifact. It
+does not describe the unsigned release build as production-ready, and it does
+not claim that Smart App Triggers detect advertisements or force open the
+notification shade.
