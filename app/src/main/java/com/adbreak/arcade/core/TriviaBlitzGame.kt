@@ -8,6 +8,7 @@ class TriviaBlitzGame : ArcadeGame {
     override val description = "Answer a bite-sized general knowledge question from a rotating offline deck."
 
     private data class Question(val prompt: String, val choices: List<String>, val answerIndex: Int)
+    private val legacyQuestionCount = 4
 
     private val questions = listOf(
         Question("Which planet is known as the Red Planet?", listOf("Venus", "Jupiter", "Mars", "Mercury"), 2),
@@ -75,7 +76,7 @@ class TriviaBlitzGame : ArcadeGame {
     }
 
     override fun encode() = JSONObject().apply {
-        put("v", 1)
+        put("v", 2)
         put("questionIndex", questionIndex)
         put("attempts", attempts)
         put("score", score)
@@ -86,20 +87,22 @@ class TriviaBlitzGame : ArcadeGame {
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != 1) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..2) return false
         val restoredQuestionIndex = json.optInt("questionIndex", -1)
         val restoredAttempts = json.optInt("attempts", -1)
         val restoredScore = json.optInt("score", -1)
         val restoredStreak = json.optInt("streak", -1)
         val restoredBest = json.optInt("best", -1)
         val restoredFeedback = json.optString("feedback")
-        if (restoredQuestionIndex !in questions.indices || restoredAttempts < 0 ||
-            restoredQuestionIndex != restoredAttempts % questions.size ||
+        val expectedDeckSize = if (version == 1) legacyQuestionCount else questions.size
+        if (restoredQuestionIndex !in 0 until expectedDeckSize || restoredAttempts < 0 ||
+            restoredQuestionIndex != restoredAttempts % expectedDeckSize ||
             restoredScore < 0 || restoredScore > restoredAttempts || restoredStreak < 0 ||
             restoredStreak > restoredScore || restoredBest < restoredStreak ||
             restoredBest > restoredScore || restoredFeedback.isBlank()
         ) return false
-        questionIndex = restoredQuestionIndex
+        questionIndex = restoredQuestionIndex % questions.size
         attempts = restoredAttempts
         score = restoredScore
         streak = restoredStreak

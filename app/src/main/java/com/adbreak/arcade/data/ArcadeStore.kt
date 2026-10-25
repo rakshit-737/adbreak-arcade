@@ -31,6 +31,10 @@ class ArcadeStore(context: Context) {
         get() = prefs.getLong("render_revision", 0L)
         set(value) = prefs.edit().putLong("render_revision", value).apply()
 
+    var sessionInteracted: Boolean
+        get() = prefs.getBoolean("session_interacted", false)
+        set(value) = prefs.edit().putBoolean("session_interacted", value).apply()
+
     var smartTriggersEnabled: Boolean
         get() = prefs.getBoolean("smart_triggers_enabled", false)
         set(value) = prefs.edit().putBoolean("smart_triggers_enabled", value).apply()
@@ -98,11 +102,11 @@ class ArcadeStore(context: Context) {
     fun statsFor(id: String): GameStats = GameStats.decode(prefs.getString("stats_$id", null))
 
     /** Records only accepted gameplay moves; preparing or rendering a notification is not progression. */
-    fun recordGameAction(id: String, terminal: Boolean) {
+    fun recordGameAction(id: String, terminal: Boolean, roundStarted: Boolean) {
         if (!GameRegistry.isKnown(id)) return
         val current = statsFor(id)
         val next = current.copy(
-            plays = current.plays + if (current.actions == 0) 1 else 0,
+            plays = current.plays + if (roundStarted) 1 else 0,
             actions = current.actions + 1,
             roundsCompleted = current.roundsCompleted + if (terminal) 1 else 0,
         )

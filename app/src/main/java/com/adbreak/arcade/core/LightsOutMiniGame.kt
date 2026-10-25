@@ -82,8 +82,8 @@ class LightsOutMiniGame : ArcadeGame {
         val restoredFeedback = json.optString("feedback")
         val allOff = restoredBoard.length == 9 && restoredBoard.all { it == '0' }
         if (restoredBoard.length != 9 || restoredBoard.any { it !in "01" } || restoredMoves < 0 ||
-            restoredWins !in 0..1 || restoredBestMoves < 0 || restoredBestMoves > restoredMoves ||
-            restoredFeedback.isBlank() || restoredOver != allOff || restoredOver != (restoredWins == 1) ||
+            restoredWins < 0 || restoredBestMoves < 0 || restoredOver && restoredBestMoves > restoredMoves ||
+            restoredFeedback.isBlank() || restoredOver != allOff ||
             (restoredWins == 0 && restoredBestMoves != 0) ||
             (restoredWins > 0 && restoredBestMoves == 0)
         ) return false

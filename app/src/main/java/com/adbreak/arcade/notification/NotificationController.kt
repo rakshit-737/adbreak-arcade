@@ -69,13 +69,15 @@ class NotificationController(private val context: Context) {
             stop()
             return false
         }
-        if (!store.active || store.sessionGameId != store.selectedGameId || store.sessionId == 0L) {
+        val newSession = !store.active || store.sessionGameId != store.selectedGameId || store.sessionId == 0L
+        if (newSession) {
             store.sessionId = maxOf(System.currentTimeMillis(), store.sessionId + 1L)
             store.sessionGameId = store.selectedGameId
             store.renderRevision = 0L
+            store.sessionInteracted = false
+            store.paused = false
         }
         store.active = true
-        store.paused = false
         renderAndNotify()
         return store.active
     }
@@ -83,6 +85,7 @@ class NotificationController(private val context: Context) {
     fun stop() {
         store.active = false
         store.paused = false
+        store.sessionInteracted = false
         store.sessionId += 1L
         store.renderRevision = 0L
         NotificationManagerCompat.from(appContext).cancel(NOTIFICATION_ID)
@@ -96,7 +99,7 @@ class NotificationController(private val context: Context) {
 
     fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?, actionRevision: Long?) {
         val hasEnvelope = actionGameId != null || actionSessionId != null || actionRevision != null
-        if (hasEnvelope && (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || actionRevision != null && actionRevision != store.renderRevision || store.selectedGameId != store.sessionGameId)) return
+        if (hasEnvelope && (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || actionRevision != null && actionRevision != store.renderRevision)) return
         if (actionName == ACTION_STOP) {
             stop()
             return
@@ -106,11 +109,17 @@ class NotificationController(private val context: Context) {
         if (action == GameAction.PAUSE) { store.paused = true; renderAndNotify(); return }
         if (action == GameAction.RESUME) { store.paused = false; renderAndNotify(); return }
         if (store.paused && action != GameAction.RESET) return
-        val game = store.loadGame()
+        val game = store.loadGame(store.sessionGameId)
         if (game.apply(action)) {
             if (action == GameAction.RESET || action == GameAction.NEW_GAME) store.paused = false
             store.saveGame(game)
-            if (action != GameAction.RESET && action != GameAction.NEW_GAME) store.recordGameAction(game.id, game.render().isTerminal)
+            if (action == GameAction.RESET || action == GameAction.NEW_GAME) {
+                store.sessionInteracted = false
+            } else {
+                val roundStarted = !store.sessionInteracted
+                store.recordGameAction(game.id, game.render().isTerminal, roundStarted)
+                store.sessionInteracted = true
+            }
         } else {
             return
         }
@@ -124,7 +133,7 @@ class NotificationController(private val context: Context) {
             stop()
             return
         }
-        val game = store.loadGame()
+        val game = store.loadGame(store.sessionGameId)
         val state = game.render()
         store.renderRevision += 1L
         val gameOver = !store.paused && isGameOver(state)
@@ -207,7 +216,7 @@ class NotificationController(private val context: Context) {
             val action = state.buttonActions.getOrNull(index)
             if (label.isNotBlank() && action != null) {
                 setTextViewText(id, label)
-                setContentDescription(id, cellContentDescription(index, label))
+                setContentDescription(id, label)
                 setViewVisibility(id, View.VISIBLE)
                 setOnClickPendingIntent(id, pending(action, REQUEST_CODE_TOP_BASE + index))
             }
@@ -226,7 +235,7 @@ class NotificationController(private val context: Context) {
             val action = state.cellActions.getOrNull(index)
             if (label.isNotBlank() && action != null) {
                 setTextViewText(id, label)
-                setContentDescription(id, label)
+                setContentDescription(id, cellContentDescription(index, label))
                 setViewVisibility(id, View.VISIBLE)
                 setOnClickPendingIntent(id, pending(action, REQUEST_CODE_CELL_BASE + index))
             }

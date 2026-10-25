@@ -1,5 +1,6 @@
 package com.adbreak.arcade.core
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,6 +83,38 @@ class NewArcadeGamesTest {
         assertTrue(game.apply(GameAction.CELL_9))
         assertTrue(game.render().subtitle.contains("Solved"))
         assertFalse(game.apply(GameAction.CELL_1))
+    }
+
+    @Test
+    fun lightsOutPreservesLifetimeWinsAcrossNewRoundsAndRestore() {
+        val game = LightsOutMiniGame()
+        repeat(2) {
+            assertTrue(game.apply(GameAction.CELL_1))
+            assertTrue(game.apply(GameAction.CELL_5))
+            assertTrue(game.apply(GameAction.CELL_9))
+            if (it == 0) assertTrue(game.apply(GameAction.NEW_GAME))
+        }
+        assertTrue(game.render().scoreLine.contains("Wins 2"))
+        val restored = LightsOutMiniGame()
+        assertTrue(restored.restore(game.encode()))
+        assertEquals(game.render(), restored.render())
+    }
+
+    @Test
+    fun triviaMigratesLegacyFourQuestionState() {
+        val legacy = JSONObject().apply {
+            put("v", 1)
+            put("questionIndex", 0)
+            put("attempts", 4)
+            put("score", 2)
+            put("streak", 1)
+            put("best", 2)
+            put("feedback", "Correct")
+        }.toString()
+        val game = TriviaBlitzGame()
+        assertTrue(game.restore(legacy))
+        assertEquals(2, JSONObject(game.encode()).optInt("v"))
+        assertEquals(4, JSONObject(game.encode()).optInt("attempts"))
     }
 
     @Test

@@ -162,7 +162,7 @@ class MainActivity : AppCompatActivity() {
                 store.onboardingCompleted = true
                 showHome()
             })
-            addView(button("Not now") {
+            addView(button("Skip for now") {
                 store.onboardingCompleted = true
                 showHome()
             })
@@ -196,7 +196,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(statusBanner(status))
         text("How it works", 19, true)
         text("Choose a game, tap Start notification, then pull down and expand AdBreak Arcade. Every move is a normal notification button. The app never detects, skips, blocks, or manipulates ads.", 15, false)
-        val recent = store.recentGameIds().mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
+        val recent = store.recentGameIds().filterNot { it == store.selectedGameId }.mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
         if (recent.isNotEmpty()) {
             text("Recently played", 19, true)
             recent.take(3).forEach { recentGame -> card(recentGame, recentGame.id == store.selectedGameId) }
@@ -220,14 +220,16 @@ class MainActivity : AppCompatActivity() {
             text("Favorites", 19, true)
             favorites.forEach { game -> card(game, game.id == store.selectedGameId) }
         }
-        val recentIds = store.recentGameIds()
+        val favoriteIds = favorites.map { it.id }.toSet()
+        val recentIds = store.recentGameIds().filterNot { it in favoriteIds }
         val recent = recentIds.mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
         if (recent.isNotEmpty()) {
             text("Recent", 19, true)
             recent.forEach { game -> card(game, game.id == store.selectedGameId) }
         }
         text("All games", 19, true)
-        GameRegistry.definitions.forEach { game -> card(game, game.id == store.selectedGameId) }
+        val excludedIds = (favorites.map { it.id } + recent.map { it.id }).toSet()
+        GameRegistry.definitions.filterNot { it.id in excludedIds }.forEach { game -> card(game, game.id == store.selectedGameId) }
     }
 
     private fun showScores() {
@@ -252,7 +254,7 @@ class MainActivity : AppCompatActivity() {
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             block.addView(TextView(this).apply {
-                text = if (stats.plays == 0) "Not played yet  ·  ${game.render().scoreLine}" else "${stats.plays} plays  ·  ${stats.actions} moves  ·  ${stats.roundsCompleted} completed"
+                text = "${game.render().scoreLine}  ·  ${stats.plays} plays  ·  ${stats.actions} moves  ·  ${stats.roundsCompleted} completed"
                 textSize = 14f
                 setTextColor(getColor(R.color.arcade_on_surface_variant))
                 setPadding(0, dp(6), 0, 0)
@@ -260,7 +262,7 @@ class MainActivity : AppCompatActivity() {
             block.addView(TextView(this).apply {
                 text = "${presentation.family.label} family  ·  ${if (store.isFavorite(definition.id)) "Favorite" else "Ready"}"
                 textSize = 11f
-                setTextColor(getColor(presentation.family.accent))
+                setTextColor(getColor(R.color.arcade_on_surface_variant))
                 setPadding(0, dp(8), 0, 0)
             })
             content.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) })
@@ -283,8 +285,16 @@ class MainActivity : AppCompatActivity() {
 
         text("Local game data", 18, true)
         text("Reset starts a fresh round. Local arcade stats and progression remain available here.", 15, false)
-        content.addView(button("Reset selected game") { store.resetGame(store.selectedGameId); showSettings() })
-        content.addView(button("Clear selected game history") { store.clearGameHistory(store.selectedGameId); showSettings() })
+        content.addView(button("Reset selected game") {
+            if (store.active && store.sessionGameId == store.selectedGameId) notification.stop()
+            store.resetGame(store.selectedGameId)
+            showSettings()
+        })
+        content.addView(button("Clear selected game history") {
+            if (store.active && store.sessionGameId == store.selectedGameId) notification.stop()
+            store.clearGameHistory(store.selectedGameId)
+            showSettings()
+        })
     }
 
     private fun showSmartTriggers() {
@@ -436,7 +446,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openNotificationSettings() {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            android.content.Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             android.content.Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                 .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
                 .putExtra(Settings.EXTRA_CHANNEL_ID, NotificationController.CHANNEL_ID)
@@ -525,14 +538,14 @@ class MainActivity : AppCompatActivity() {
             text = presentation.motif
             textSize = 18f
             gravity = Gravity.CENTER
-            setTextColor(getColor(presentation.family.accent))
+            setTextColor(getColor(R.color.arcade_on_primary_container))
             setBackgroundResource(R.drawable.bg_violet_pill)
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(36)).apply { marginEnd = dp(10) }
         })
         top.addView(TextView(this).apply {
             text = "${presentation.family.label.uppercase()}  ·  ${if (selected) "CURRENT" else "READY"}"
             textSize = 11f
-            setTextColor(getColor(presentation.family.accent))
+            setTextColor(getColor(R.color.arcade_on_surface_variant))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         })
@@ -566,7 +579,10 @@ class MainActivity : AppCompatActivity() {
                 setPadding(0, 0, 0, dp(8))
             })
         } else {
-            block.addView(button("Use this game") { store.select(game.id); showLibrary() })
+            block.addView(button("Use this game") {
+                store.select(game.id)
+                showLibrary()
+            })
         }
         block.addView(button("Start notification") { startGame(game.id) })
         content.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) })
@@ -604,6 +620,8 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == this.requestCode && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
             val gameId = pendingStartGameId
             pendingStartGameId = null
+            if (gameId != null && store.active && store.sessionGameId != gameId) notification.stop()
+            if (gameId != null) store.select(gameId)
             if (gameId != null && notification.show()) showHome() else showSettings()
         } else if (requestCode == this.requestCode) {
             pendingStartGameId = null
