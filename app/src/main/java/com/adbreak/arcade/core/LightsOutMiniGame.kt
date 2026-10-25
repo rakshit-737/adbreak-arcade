@@ -20,8 +20,6 @@ class LightsOutMiniGame : ArcadeGame {
     override fun reset() {
         initialBoard.forEachIndexed { index, value -> board[index] = value }
         moves = 0
-        wins = 0
-        bestMoves = 0
         over = false
         feedback = "Turn every light off"
     }

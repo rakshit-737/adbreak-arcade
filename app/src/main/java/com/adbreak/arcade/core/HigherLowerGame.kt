@@ -105,7 +105,8 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
             labels,
             actions,
             feedback = feedback,
-            isTerminal = roundEnded
+            isTerminal = roundEnded,
+            phase = if (!roundEnded) GamePhase.PLAYING else if (message.startsWith("Correct")) GamePhase.WON else GamePhase.LOST
         )
     }
 

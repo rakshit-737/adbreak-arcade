@@ -84,7 +84,13 @@ class ConnectThreeGame : ArcadeGame {
             cellButtons = listOf("COL 1", "COL 2", "COL 3"),
             cellActions = listOf(GameAction.CELL_1, GameAction.CELL_2, GameAction.CELL_3),
             feedback = feedback,
-            isTerminal = over
+            isTerminal = over,
+            phase = when {
+                !over -> GamePhase.PLAYING
+                feedback.contains("You connected", ignoreCase = true) -> GamePhase.WON
+                feedback.contains("Arcade connected", ignoreCase = true) -> GamePhase.LOST
+                else -> GamePhase.DRAW
+            }
         )
     }
 

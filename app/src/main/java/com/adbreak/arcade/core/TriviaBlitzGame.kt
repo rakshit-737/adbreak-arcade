@@ -5,15 +5,19 @@ import org.json.JSONObject
 class TriviaBlitzGame : ArcadeGame {
     override val id = "trivia_blitz"
     override val title = "Trivia Blitz"
-    override val description = "Answer a bite-sized general knowledge question before the moment passes."
+    override val description = "Answer a bite-sized general knowledge question from a rotating offline deck."
 
     private data class Question(val prompt: String, val choices: List<String>, val answerIndex: Int)
 
     private val questions = listOf(
-        Question("Which planet is known as the Red Planet?", listOf("Mars", "Venus", "Jupiter", "Mercury"), 0),
-        Question("How many sides does a hexagon have?", listOf("6", "5", "7", "8"), 0),
-        Question("What gas do plants absorb?", listOf("Oxygen", "Nitrogen", "Carbon dioxide", "Helium"), 2),
-        Question("Which ocean is the largest?", listOf("Pacific", "Atlantic", "Indian", "Arctic"), 0)
+        Question("Which planet is known as the Red Planet?", listOf("Venus", "Jupiter", "Mars", "Mercury"), 2),
+        Question("How many sides does a hexagon have?", listOf("5", "7", "8", "6"), 3),
+        Question("What gas do plants absorb?", listOf("Oxygen", "Carbon dioxide", "Nitrogen", "Helium"), 1),
+        Question("Which ocean is the largest?", listOf("Atlantic", "Indian", "Pacific", "Arctic"), 2),
+        Question("What is the fastest land animal?", listOf("Cheetah", "Horse", "Ostrich", "Lion"), 0),
+        Question("Which instrument has keys, pedals, and strings?", listOf("Violin", "Piano", "Flute", "Drum"), 1),
+        Question("What is the first prime number?", listOf("0", "1", "2", "3"), 2),
+        Question("Which shape has three sides?", listOf("Square", "Circle", "Triangle", "Hexagon"), 2)
     )
     private var questionIndex = 0
     private var attempts = 0
