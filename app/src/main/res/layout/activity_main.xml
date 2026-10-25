@@ -54,5 +54,12 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:text="Settings" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/navAbout"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="About" />
     </LinearLayout>
 </LinearLayout>

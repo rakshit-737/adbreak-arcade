@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.navLibrary).setOnClickListener { showLibrary() }
         findViewById<View>(R.id.navScores).setOnClickListener { showScores() }
         findViewById<View>(R.id.navSettings).setOnClickListener { showSettings() }
+        findViewById<View>(R.id.navAbout).setOnClickListener { showAbout() }
         showHome()
     }
 
@@ -60,6 +61,61 @@ class MainActivity : AppCompatActivity() {
     private fun showScores() { content.removeAllViews(); heading("Your run, kept local", "Personal bests stay on this device. No account, analytics, or network access."); val game = store.loadGame(); text(game.render().scoreLine, 22, true); text("Select a game from Library to start a fresh challenge or continue its saved state.", 15, false) }
 
     private fun showSettings() { content.removeAllViews(); heading("Settings", "Keep the arcade quiet, clear, and under your control."); text("Notification permission", 18, true); text(if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) "Allowed — the game notification can appear." else "Not allowed — enable it in Android Settings to play in the notification shade.", 15, false); content.addView(button("Open notification settings") { startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)) }); content.addView(button("Stop active notification") { notification.stop(); showHome() }) }
+
+    private fun showAbout() {
+        content.removeAllViews()
+        heading("About AdBreak Arcade", "A small, offline arcade for the moments between everything else.")
+
+        val intro = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            setBackgroundResource(R.drawable.bg_lilac_pill)
+        }
+        intro.addView(TextView(this).apply {
+            text = "Play without leaving your flow"
+            textSize = 21f
+            setTextColor(getColor(R.color.arcade_ink))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        intro.addView(TextView(this).apply {
+            text = "AdBreak Arcade keeps seven quick games close at hand through a quiet Android notification. It is designed for short, intentional play while another app stays in front."
+            textSize = 15f
+            setTextColor(getColor(R.color.arcade_ink))
+            setPadding(0, dp(8), 0, 0)
+        })
+        content.addView(intro, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(20)) })
+
+        text("Related topics", 20, true)
+        topic("Notification-first play", "Every move is a normal notification control. Expand the notification when you want to play, then return to the app you were already using.")
+        topic("Offline by default", "The games, scores, and saved state stay on this device. There is no account, analytics, or network access required.")
+        topic("Respectful boundaries", "AdBreak Arcade does not detect, block, skip, overlay, or manipulate advertisements or other apps.")
+        topic("Accessible controls", "The app uses native Android controls, scalable text, light and dark themes, and touch targets sized for comfortable use.")
+
+        text("Built for small breaks", 20, true)
+        text("Choose a game from Library, start the notification, and keep the waiting part simple. Your best scores stay local and can be cleared by resetting the game.", 15, false)
+        text("Version 1.0.0", 14, false)
+    }
+
+    private fun topic(title: String, body: String) {
+        val block = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            setBackgroundResource(R.drawable.bg_card)
+        }
+        block.addView(TextView(this).apply {
+            text = title
+            textSize = 17f
+            setTextColor(getColor(R.color.arcade_ink))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        block.addView(TextView(this).apply {
+            text = body
+            textSize = 15f
+            setTextColor(getColor(R.color.arcade_ink))
+            setPadding(0, dp(6), 0, 0)
+        })
+        content.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(12)) })
+    }
 
     private fun heading(title: String, subtitle: String) { text(title, 30, true); text(subtitle, 16, false) }
     private fun card(game: ArcadeGame, selected: Boolean) {
