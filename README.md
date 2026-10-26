@@ -6,6 +6,13 @@ the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
 Optional Smart App Triggers only observe foreground transitions for apps the user
 explicitly selects.
 
+## Community and legal
+
+- Source code license: [Apache License 2.0](LICENSE)
+- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Community standards: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+
 ## What is implemented
 
 - Seventeen playable games: Tap Counter, Quick Math, Tic-Tac-Toe, Higher or
@@ -252,7 +259,7 @@ expected published site is:
 https://rakshit-737.github.io/adbreak-arcade/
 ```
 
-The website labels the current `v1.1.0` debug APK as a testing artifact. It
+The website labels the current `v1.2.0` debug APK as a testing artifact. It
 does not describe the unsigned release build as production-ready, and it does
 not claim that Smart App Triggers detect advertisements or force open the
 notification shade.

@@ -8,8 +8,8 @@ import { NotificationDemo } from './components/NotificationDemo'
 import { Reveal } from './components/Reveal'
 
 const repositoryUrl = 'https://github.com/rakshit-737/adbreak-arcade'
-const releaseUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/tag/v1.1.0'
-const apkUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/download/v1.1.0/app-debug.apk'
+const releaseUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/tag/v1.2.0'
+const apkUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/download/v1.2.0/app-debug.apk'
 
 const navItems = [
   { label: 'Features', href: '#features' },
@@ -75,7 +75,7 @@ export default function App() {
                 <span><Icon name="check" /> Local state</span>
                 <span><Icon name="check" /> No network permission</span>
               </div>
-              <p className="hero-release"><span className="release-dot" /> v1.1.0 debug APK is available for testing <a href={releaseUrl}>View release</a></p>
+              <p className="hero-release"><span className="release-dot" /> v1.2.0 debug APK is available for testing <a href={releaseUrl}>View release</a></p>
             </Reveal>
             <Reveal className="hero-preview" delay={80}>
               <NotificationDemo />
@@ -213,8 +213,8 @@ export default function App() {
           </Reveal>
           <div className="install-grid">
             <Reveal className="install-card install-card--primary" delay={80}><span className="install-card__number">01</span><h3>Build locally</h3><p>Use the Gradle wrapper with JDK 17 and Android SDK API 36.</p><code>./gradlew testDebugUnitTest<br />./gradlew assembleDebug</code><a className="text-link" href={repositoryUrl + '#readme'} target="_blank" rel="noreferrer">Read the setup notes <Icon name="external" /></a></Reveal>
-            <Reveal className="install-card" delay={140}><span className="install-card__number">02</span><h3>Install the test build</h3><p>Version 1.1.0 debug APK, signed with the standard Android debug key.</p><a className="button button--primary button--small" href={apkUrl}>Download debug APK <Icon name="arrow" /></a><span className="install-note">Testing artifact · not Play Store distribution</span></Reveal>
-            <Reveal className="install-card" delay={200}><span className="install-card__number">03</span><h3>Grant what you need</h3><p>Android 13/API 33+ needs notification permission. Smart App Triggers separately need Usage access.</p><a className="text-link" href={releaseUrl} target="_blank" rel="noreferrer">View the v1.1.0 release <Icon name="external" /></a></Reveal>
+            <Reveal className="install-card" delay={140}><span className="install-card__number">02</span><h3>Install the test build</h3><p>Version 1.2.0 debug APK, signed with the standard Android debug key.</p><a className="button button--primary button--small" href={apkUrl}>Download debug APK <Icon name="arrow" /></a><span className="install-note">Testing artifact · not Play Store distribution</span></Reveal>
+            <Reveal className="install-card" delay={200}><span className="install-card__number">03</span><h3>Grant what you need</h3><p>Android 13/API 33+ needs notification permission. Smart App Triggers separately need Usage access.</p><a className="text-link" href={releaseUrl} target="_blank" rel="noreferrer">View the v1.2.0 release <Icon name="external" /></a></Reveal>
           </div>
         </section>
 
