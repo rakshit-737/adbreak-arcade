@@ -1,0 +1,78 @@
+name: Bug report
+description: Report a reproducible problem in the app, website, or project tooling.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. For security vulnerabilities, please use the private process in [SECURITY.md](../../SECURITY.md) instead of opening a public issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen.
+      placeholder: Tell us what you saw and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest reliable set of steps that demonstrates the issue.
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Tap...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Android app
+        - Notification controls
+        - Game rules or persistence
+        - Smart App Triggers
+        - Project website
+        - Build or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Include the app version, release tag, branch, or commit if known.
+      placeholder: v1.2.0 or commit SHA
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: For Android issues, include device model, Android API level, and whether this was a debug APK.
+      placeholder: Pixel 8 · Android 16/API 36 · v1.2.0 debug APK
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Remove credentials, tokens, personal data, and private notification content before attaching anything.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I have removed secrets and private user data from this report.
+          required: true
+        - label: This is not a security vulnerability requiring private disclosure.
+          required: true

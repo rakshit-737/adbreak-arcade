@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/rakshit-737/adbreak-arcade/security/advisories/new
+    about: Do not disclose vulnerabilities in a public issue. Follow SECURITY.md.
+  - name: Read the project documentation
+    url: https://github.com/rakshit-737/adbreak-arcade#readme
+    about: Check the README, contributing guide, and known platform limitations first.
