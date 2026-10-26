@@ -1,0 +1,58 @@
+name: Feature request
+description: Suggest a focused improvement to AdBreak Arcade.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good feature requests explain the user problem first. The project stays offline-first, notification-safe, and respectful of Android platform boundaries.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What user need or friction would this address?
+      placeholder: I want to... because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful behavior or experience.
+      placeholder: A focused proposal could work like this...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other approaches have you tried?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Android app
+        - Notification controls
+        - Game rules or progression
+        - Smart App Triggers
+        - Project website
+        - Build or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: This proposal can work without an account system, cloud backend, analytics, or advertising SDK.
+        - label: This proposal does not require detecting, skipping, blocking, or manipulating ads or other apps.
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
