@@ -6,7 +6,7 @@ import java.util.Random
 class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "higher_lower"
     override val title = "Higher or Lower"
-    override val description = "Read the clue, narrow the range, and make a guess."
+    override val description = "Narrow the fair range, spend five tries, and protect your streak."
 
     private var rangeMax = 20
     private var low = 1
@@ -24,6 +24,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         private set
     private var lastRoundScore = 0
     private var streak = 0
+    private var roundsCompleted = 0
 
     private fun nextRangeMax() = (20 + wins.coerceAtMost(6) * 5).coerceAtMost(50)
 
@@ -58,6 +59,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         if (guess == secret) {
             val roundScore = attempts + rangeMax / 10
             wins++
+            roundsCompleted++
             streak++
             bestStreak = maxOf(bestStreak, streak)
             score += roundScore
@@ -71,6 +73,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         attempts--
         streak = 0
         if (attempts <= 0) {
+            roundsCompleted++
             message = "Out of tries — it was $secret"
             feedback = "Round over — start a new round to try again"
             roundEnded = true
@@ -101,7 +104,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         return GameViewState(
             title,
             message,
-            "Range $low–$high  ·  Tries $attempts  ·  Wins $wins  ·  Score $score$roundSummary",
+            "Range $low–$high  ·  Tries $attempts  ·  Streak $streak  ·  Best $bestStreak  ·  Score $score$roundSummary",
             labels,
             actions,
             feedback = feedback,
@@ -111,7 +114,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
     }
 
     override fun encode() = JSONObject().apply {
-        put("v", 2)
+        put("v", 3)
         put("rangeMax", rangeMax)
         put("low", low)
         put("high", high)
@@ -125,12 +128,13 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         put("score", score)
         put("lastRoundScore", lastRoundScore)
         put("streak", streak)
+        put("roundsCompleted", roundsCompleted)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..2) return false
+        if (version !in 1..3) return false
 
         val restoredRangeMax = json.optInt("rangeMax", 20)
         val restoredLow = json.optInt("low", -1)
@@ -145,13 +149,14 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         val restoredScore = json.optInt("score", restoredWins)
         val restoredLastRoundScore = json.optInt("lastRoundScore", 0)
         val restoredStreak = json.optInt("streak", -1)
+        val restoredRounds = json.optInt("roundsCompleted", 0)
 
         if (restoredRangeMax !in 20..50 || restoredLow !in 1..restoredRangeMax ||
             restoredHigh !in restoredLow..restoredRangeMax || restoredSecret !in 1..restoredRangeMax ||
             restoredAttempts !in 0..5 || restoredMessage.isBlank() || restoredFeedback.isBlank() ||
             restoredWins !in 0..1_000_000 || restoredBest !in 0..1_000_000 ||
             restoredStreak !in 0..restoredBest || restoredScore !in 0..10_000_000 ||
-            restoredLastRoundScore !in 0..100) return false
+            restoredLastRoundScore !in 0..100 || restoredRounds !in 0..1_000_000) return false
 
         if (!restoredEnded) {
             if (restoredAttempts == 0 || restoredSecret !in restoredLow..restoredHigh) return false
@@ -174,6 +179,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         score = restoredScore
         lastRoundScore = restoredLastRoundScore
         streak = restoredStreak
+        roundsCompleted = restoredRounds
         true
     }.getOrDefault(false)
 }

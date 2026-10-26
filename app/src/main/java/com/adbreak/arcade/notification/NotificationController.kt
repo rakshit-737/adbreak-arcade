@@ -167,7 +167,7 @@ class NotificationController(private val context: Context) {
             setTextViewText(R.id.notificationCompactStatus, status)
             setTextViewText(R.id.notificationCompactScore, effectiveState.scoreLine)
             setTextViewText(R.id.notificationCompactHint, compactHint)
-            setViewVisibility(R.id.notificationCompactHint, View.GONE)
+            setViewVisibility(R.id.notificationCompactHint, if (compactHint.isBlank()) View.GONE else View.VISIBLE)
         }
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_arcade)
