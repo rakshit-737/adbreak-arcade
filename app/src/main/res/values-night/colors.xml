@@ -9,4 +9,16 @@
     <color name="notification_primary_text">#F3EFFA</color>
     <color name="notification_secondary_text">#C8C0D2</color>
     <color name="notification_accent">#C6B7FF</color>
+    <color name="arcade_background">#0D0B12</color>
+    <color name="arcade_surface_container">#1D1926</color>
+    <color name="arcade_surface_high">#262130</color>
+    <color name="arcade_on_surface_variant">#C9C0D0</color>
+    <color name="arcade_primary_container">#3C2A69</color>
+    <color name="arcade_on_primary_container">#EBDDFF</color>
+    <color name="arcade_family_pulse">#FFB3C5</color>
+    <color name="arcade_family_logic">#7DD8FF</color>
+    <color name="arcade_family_words">#D7B7FF</color>
+    <color name="arcade_family_board">#79E5C6</color>
+    <color name="arcade_family_code">#FFD18A</color>
+    <color name="arcade_family_focus">#A7C7FF</color>
 </resources>

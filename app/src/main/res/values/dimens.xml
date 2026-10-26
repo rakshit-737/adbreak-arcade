@@ -2,4 +2,13 @@
     <dimen name="page_padding">20dp</dimen>
     <dimen name="section_gap">18dp</dimen>
     <dimen name="card_radius">24dp</dimen>
+    <dimen name="content_max_width">720dp</dimen>
+    <dimen name="control_min_height">48dp</dimen>
+    <dimen name="setting_row_min_height">64dp</dimen>
+    <dimen name="space_1">4dp</dimen>
+    <dimen name="space_2">8dp</dimen>
+    <dimen name="space_3">12dp</dimen>
+    <dimen name="space_4">16dp</dimen>
+    <dimen name="space_5">20dp</dimen>
+    <dimen name="space_6">24dp</dimen>
 </resources>

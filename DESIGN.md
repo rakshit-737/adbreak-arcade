@@ -32,6 +32,22 @@ controls and a separate expanded layout.
 - Test long labels, emoji, Unicode symbols, large font scale, dark mode, and
   collapsed/expanded notification layouts on actual System UI.
 
+## Arcade upgrade system
+
+The Android hub now treats game presentation as a separate catalog from game
+rules. Each game receives a small family identity—Pulse, Logic, Words, Board,
+Code, or Focus—with an accent, motif, and readable text label. Color is a hint,
+never the only way to identify a family.
+
+The home surface exposes local Arcade Level progress, recent play, favorites,
+and an explicit first-launch explanation. Progress is earned from accepted game
+actions and completed rounds only; preparing a notification or browsing screens
+does not earn progression. No game is locked behind the level.
+
+Notification actions carry a session and render revision envelope. This keeps a
+button tied to the exact rendered state instead of only the current game, while
+the notification itself remains quiet, compact, and within RemoteViews limits.
+
 ## Website visual system
 
 The project website uses the same restrained violet identity as the Android app,

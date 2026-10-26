@@ -5,15 +5,20 @@ import org.json.JSONObject
 class TriviaBlitzGame : ArcadeGame {
     override val id = "trivia_blitz"
     override val title = "Trivia Blitz"
-    override val description = "Answer a bite-sized general knowledge question before the moment passes."
+    override val description = "Answer a bite-sized general knowledge question from a rotating offline deck."
 
     private data class Question(val prompt: String, val choices: List<String>, val answerIndex: Int)
+    private val legacyQuestionCount = 4
 
     private val questions = listOf(
-        Question("Which planet is known as the Red Planet?", listOf("Mars", "Venus", "Jupiter", "Mercury"), 0),
-        Question("How many sides does a hexagon have?", listOf("6", "5", "7", "8"), 0),
-        Question("What gas do plants absorb?", listOf("Oxygen", "Nitrogen", "Carbon dioxide", "Helium"), 2),
-        Question("Which ocean is the largest?", listOf("Pacific", "Atlantic", "Indian", "Arctic"), 0)
+        Question("Which planet is known as the Red Planet?", listOf("Venus", "Jupiter", "Mars", "Mercury"), 2),
+        Question("How many sides does a hexagon have?", listOf("5", "7", "8", "6"), 3),
+        Question("What gas do plants absorb?", listOf("Oxygen", "Carbon dioxide", "Nitrogen", "Helium"), 1),
+        Question("Which ocean is the largest?", listOf("Atlantic", "Indian", "Pacific", "Arctic"), 2),
+        Question("What is the fastest land animal?", listOf("Cheetah", "Horse", "Ostrich", "Lion"), 0),
+        Question("Which instrument has keys, pedals, and strings?", listOf("Violin", "Piano", "Flute", "Drum"), 1),
+        Question("What is the first prime number?", listOf("0", "1", "2", "3"), 2),
+        Question("Which shape has three sides?", listOf("Square", "Circle", "Triangle", "Hexagon"), 2)
     )
     private var questionIndex = 0
     private var attempts = 0
@@ -71,7 +76,7 @@ class TriviaBlitzGame : ArcadeGame {
     }
 
     override fun encode() = JSONObject().apply {
-        put("v", 1)
+        put("v", 2)
         put("questionIndex", questionIndex)
         put("attempts", attempts)
         put("score", score)
@@ -82,20 +87,22 @@ class TriviaBlitzGame : ArcadeGame {
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != 1) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..2) return false
         val restoredQuestionIndex = json.optInt("questionIndex", -1)
         val restoredAttempts = json.optInt("attempts", -1)
         val restoredScore = json.optInt("score", -1)
         val restoredStreak = json.optInt("streak", -1)
         val restoredBest = json.optInt("best", -1)
         val restoredFeedback = json.optString("feedback")
-        if (restoredQuestionIndex !in questions.indices || restoredAttempts < 0 ||
-            restoredQuestionIndex != restoredAttempts % questions.size ||
+        val expectedDeckSize = if (version == 1) legacyQuestionCount else questions.size
+        if (restoredQuestionIndex !in 0 until expectedDeckSize || restoredAttempts < 0 ||
+            restoredQuestionIndex != restoredAttempts % expectedDeckSize ||
             restoredScore < 0 || restoredScore > restoredAttempts || restoredStreak < 0 ||
             restoredStreak > restoredScore || restoredBest < restoredStreak ||
             restoredBest > restoredScore || restoredFeedback.isBlank()
         ) return false
-        questionIndex = restoredQuestionIndex
+        questionIndex = restoredQuestionIndex % questions.size
         attempts = restoredAttempts
         score = restoredScore
         streak = restoredStreak

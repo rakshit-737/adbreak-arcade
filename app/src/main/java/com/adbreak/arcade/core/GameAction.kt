@@ -5,6 +5,15 @@ enum class GameAction {
     CELL_4, CELL_5, CELL_6, CELL_7, CELL_8, CELL_9
 }
 
+enum class GamePhase {
+    READY,
+    PLAYING,
+    PAUSED,
+    WON,
+    LOST,
+    DRAW,
+}
+
 data class GameViewState(
     val title: String,
     val subtitle: String,
@@ -15,6 +24,7 @@ data class GameViewState(
     val cellActions: List<GameAction> = emptyList(),
     val feedback: String = "",
     val isTerminal: Boolean = false,
+    val phase: GamePhase = GamePhase.PLAYING,
 )
 
 interface ArcadeGame {

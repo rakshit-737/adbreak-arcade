@@ -127,7 +127,13 @@ class TicTacToeGame : ArcadeGame {
         cellButtons = board.mapIndexed { i, mark -> "${i + 1}:${if (mark == ' ') "·" else mark}" },
         cellActions = (0..8).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
         feedback = feedback,
-        isTerminal = over
+        isTerminal = over,
+        phase = when {
+            !over -> GamePhase.PLAYING
+            result == "You win" -> GamePhase.WON
+            result == "Arcade wins" -> GamePhase.LOST
+            else -> GamePhase.DRAW
+        }
     )
 
     override fun encode() = JSONObject().apply {

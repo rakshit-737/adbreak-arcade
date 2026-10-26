@@ -67,7 +67,8 @@ class NimGame : ArcadeGame {
                 buttons = listOf("NEW ROUND"),
                 buttonActions = listOf(GameAction.NEW_GAME),
                 feedback = feedback,
-                isTerminal = true
+                isTerminal = true,
+                phase = if (feedback.contains("you win", ignoreCase = true)) GamePhase.WON else GamePhase.LOST
             )
         }
         val amounts = (1..3).filter { it <= stones }

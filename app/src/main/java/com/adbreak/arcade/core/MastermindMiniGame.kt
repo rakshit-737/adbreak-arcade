@@ -20,6 +20,7 @@ class MastermindMiniGame : ArcadeGame {
     private var solved = 0
     private var streak = 0
     private var best = 0
+    private var over = false
     private var feedback = "Pick a three-digit code"
 
     override fun reset() {
@@ -28,6 +29,7 @@ class MastermindMiniGame : ArcadeGame {
         solved = 0
         streak = 0
         best = 0
+        over = false
         feedback = "Pick a three-digit code"
     }
 
@@ -36,6 +38,7 @@ class MastermindMiniGame : ArcadeGame {
             reset()
             return true
         }
+        if (over) return false
         val choiceIndex = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -56,11 +59,16 @@ class MastermindMiniGame : ArcadeGame {
             streak++
             best = maxOf(best, streak)
             feedback = "Solved — 3 exact"
+            over = true
         } else {
             streak = 0
             feedback = "$exact exact · $misplaced misplaced"
+            if (attempts >= 4) {
+                feedback += " · Code was ${puzzle.secret}"
+                over = true
+            }
         }
-        puzzleIndex = (puzzleIndex + 1) % puzzles.size
+        if (over && exact == puzzle.secret.length) puzzleIndex = (puzzleIndex + 1) % puzzles.size
         return true
     }
 
@@ -68,35 +76,40 @@ class MastermindMiniGame : ArcadeGame {
         val puzzle = puzzles[puzzleIndex]
         return GameViewState(
             title = title,
-            subtitle = "Code has 3 digits from 1–4",
-            scoreLine = "Solved $solved  ·  Streak $streak  ·  Best $best",
-            buttons = puzzle.choices,
-            buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
-            feedback = feedback
+        subtitle = if (over) "Round over — start a new code" else "Crack the same code · Attempt ${attempts + 1}/4",
+        scoreLine = "Solved $solved  ·  Streak $streak  ·  Best $best",
+        buttons = if (over) listOf("NEW GAME") else puzzle.choices,
+        buttonActions = if (over) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+        feedback = feedback,
+        isTerminal = over,
+        phase = if (!over) GamePhase.PLAYING else if (feedback.startsWith("Solved")) GamePhase.WON else GamePhase.LOST
         )
     }
 
     override fun encode() = JSONObject().apply {
-        put("v", 1)
+        put("v", 2)
         put("puzzleIndex", puzzleIndex)
         put("attempts", attempts)
         put("solved", solved)
         put("streak", streak)
         put("best", best)
+        put("over", over)
         put("feedback", feedback)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != 1) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..2) return false
         val restoredPuzzleIndex = json.optInt("puzzleIndex", -1)
         val restoredAttempts = json.optInt("attempts", -1)
         val restoredSolved = json.optInt("solved", -1)
         val restoredStreak = json.optInt("streak", -1)
         val restoredBest = json.optInt("best", -1)
+        val restoredOver = if (version >= 2) json.optBoolean("over") else false
         val restoredFeedback = json.optString("feedback")
         if (restoredPuzzleIndex !in puzzles.indices || restoredAttempts < 0 ||
-            restoredPuzzleIndex != restoredAttempts % puzzles.size ||
+            (version == 1 && restoredPuzzleIndex != restoredAttempts % puzzles.size) ||
             restoredSolved < 0 || restoredSolved > restoredAttempts || restoredStreak < 0 ||
             restoredStreak > restoredSolved || restoredBest < restoredStreak ||
             restoredBest > restoredSolved || restoredFeedback.isBlank()
@@ -106,6 +119,7 @@ class MastermindMiniGame : ArcadeGame {
         solved = restoredSolved
         streak = restoredStreak
         best = restoredBest
+        over = restoredOver
         feedback = restoredFeedback
         true
     }.getOrDefault(false)

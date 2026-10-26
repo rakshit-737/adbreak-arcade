@@ -25,7 +25,7 @@ object GameRegistry {
     val definitions: List<ArcadeGame>
         get() = factories.values.map { it() }
 
-    fun create(id: String): ArcadeGame = (factories[id] ?: factories.getValue("tap_counter")).invoke()
+    fun create(id: String): ArcadeGame = factories[id]?.invoke() ?: error("Unknown game id: $id")
 
     fun isKnown(id: String) = id in factories
 }

@@ -24,6 +24,8 @@ The app must not promise device behavior it has not tested.
 Premium, restrained violet accent; readable native controls; light and dark themes.
 Current app screens: Home, Library, Scores, Settings, About, and Smart App Trigger
 setup.
+Local Arcade Level progress, recent games, favorites, and per-game play counts
+are additive, optional, and never gate access to games.
 
 ## Accessibility
 Scalable text, descriptive button labels, native focus behavior, 48dp app controls.

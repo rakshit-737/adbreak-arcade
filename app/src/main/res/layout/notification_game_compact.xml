@@ -8,26 +8,32 @@
     <TextView
         android:id="@+id/notificationCompactTitle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/notification_primary_text"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+         android:layout_height="wrap_content"
+         android:textColor="@color/notification_primary_text"
+         android:textSize="15sp"
+         android:textStyle="bold"
+         android:maxLines="1"
+         android:ellipsize="end" />
     <TextView
         android:id="@+id/notificationCompactStatus"
         style="@style/NotificationStatus"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp" />
+         android:layout_height="wrap_content"
+         android:layout_marginTop="2dp" />
     <TextView
         android:id="@+id/notificationCompactScore"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/notification_accent"
-        android:textSize="13sp" />
+         android:layout_height="wrap_content"
+         android:textColor="@color/notification_accent"
+         android:textSize="13sp"
+         android:maxLines="1"
+         android:ellipsize="end" />
     <TextView
         android:id="@+id/notificationCompactHint"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/notification_secondary_text"
-        android:textSize="12sp" />
+         android:layout_height="wrap_content"
+         android:textColor="@color/notification_secondary_text"
+         android:textSize="12sp"
+         android:maxLines="1"
+         android:ellipsize="end" />
 </LinearLayout>

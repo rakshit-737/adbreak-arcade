@@ -1,16 +1,16 @@
 package com.adbreak.arcade.core
 
 import org.json.JSONObject
+import java.util.Random
 
-class RockPaperScissorsGame : ArcadeGame {
+class RockPaperScissorsGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "rock_paper_scissors"
     override val title = "Rock Paper Scissors"
     override val description = "Pick a move and outsmart the arcade in one quick round."
 
     private val moves = listOf("Rock", "Paper", "Scissors")
-    private val computerCycle = intArrayOf(2, 0, 1, 1, 2, 0)
     private var round = 0
-    private var computerMove = computerCycle[0]
+    private var computerMove = random.nextInt(3)
     private var wins = 0
     private var losses = 0
     private var draws = 0
@@ -18,7 +18,7 @@ class RockPaperScissorsGame : ArcadeGame {
 
     override fun reset() {
         round = 0
-        computerMove = computerCycle[0]
+        computerMove = random.nextInt(3)
         wins = 0
         losses = 0
         draws = 0
@@ -52,7 +52,7 @@ class RockPaperScissorsGame : ArcadeGame {
             }
         }
         round++
-        computerMove = computerCycle[round % computerCycle.size]
+        computerMove = random.nextInt(3)
         return true
     }
 
@@ -66,7 +66,7 @@ class RockPaperScissorsGame : ArcadeGame {
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 1)
+        put("v", 2)
         put("round", round)
         put("computerMove", computerMove)
         put("wins", wins)
@@ -77,7 +77,7 @@ class RockPaperScissorsGame : ArcadeGame {
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != 1) return false
+        if (json.optInt("v", -1) !in 1..2) return false
         val restoredRound = json.optInt("round", -1)
         val restoredComputerMove = json.optInt("computerMove", -1)
         val restoredWins = json.optInt("wins", -1)
@@ -87,7 +87,6 @@ class RockPaperScissorsGame : ArcadeGame {
         if (restoredRound < 0 || restoredComputerMove !in 0..2 ||
             restoredWins < 0 || restoredLosses < 0 || restoredDraws < 0 ||
             restoredRound != restoredWins + restoredLosses + restoredDraws ||
-            restoredComputerMove != computerCycle[restoredRound % computerCycle.size] ||
             restoredFeedback.isBlank()
         ) return false
         round = restoredRound

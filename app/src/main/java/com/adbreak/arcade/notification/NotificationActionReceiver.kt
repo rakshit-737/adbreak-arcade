@@ -13,10 +13,16 @@ class NotificationActionReceiver : BroadcastReceiver() {
             } else {
                 null
             }
+            val renderRevision = if (intent.hasExtra(NotificationController.EXTRA_RENDER_REVISION)) {
+                intent.getLongExtra(NotificationController.EXTRA_RENDER_REVISION, Long.MIN_VALUE)
+            } else {
+                null
+            }
             NotificationController(context.applicationContext).handle(
                 action,
                 intent.getStringExtra(NotificationController.EXTRA_GAME_ID),
                 sessionId,
+                renderRevision,
             )
         }
     }

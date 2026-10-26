@@ -28,6 +28,12 @@ explicitly selects.
 - Optional Smart App Triggers settings for selecting launchable apps, granting
   Usage access, choosing a game, configuring cooldown, and manually testing the
   notification.
+- Local arcade progression: first-play XP, level progress, recent games,
+  favorites, per-game play/action/completion counts, and an onboarding guide.
+- Session-safe notification actions include a render revision so an older
+  rendered button cannot mutate a newer state in the same session.
+- Compact notifications keep the collapsed view to title/status/score, while
+  grid games hide verbose copy in the expanded layout to protect readability.
 
 ## Supported Android range
 
