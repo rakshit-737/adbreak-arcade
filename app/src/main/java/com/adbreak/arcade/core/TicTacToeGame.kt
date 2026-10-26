@@ -6,7 +6,7 @@ import org.json.JSONObject
 class TicTacToeGame : ArcadeGame {
     override val id = "tic_tac_toe"
     override val title = "Tic-Tac-Toe"
-    override val description = "Play numbered cells against a lightweight defensive AI."
+    override val description = "Read the board, block the threat, and outplay a perfect defensive AI."
 
     private val board = Array(9) { ' ' }
     private var over = false
@@ -120,7 +120,7 @@ class TicTacToeGame : ArcadeGame {
 
     override fun render() = GameViewState(
         title,
-        result,
+        if (over) result else "Your turn · X = you · O = Arcade",
         "${board.joinToString(" ") { if (it == ' ') "·" else it.toString() }}  ·  W $wins  L $losses  D $draws  ·  Score $score",
         buttons = if (over) listOf("NEW GAME") else emptyList(),
         buttonActions = if (over) listOf(GameAction.NEW_GAME) else emptyList(),

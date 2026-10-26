@@ -6,6 +6,18 @@ the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
 Optional Smart App Triggers only observe foreground transitions for apps the user
 explicitly selects.
 
+## Current release: 1.3.0
+
+This release hardens the seven original notification games around short,
+replayable turns: Tap Counter has a target sprint and combo scoring; Quick Math
+tracks accuracy and raises difficulty from demonstrated performance; Tic-Tac-Toe
+uses a competent minimax opponent; Higher or Lower has fair five-try rounds and
+streak records; Memory Challenge grows a sequence with three lives; Word Scramble
+uses a curated vocabulary set without immediate repeats; and Number Sequence
+offers arithmetic, geometric, alternating, square, and mixed rules with a single
+validated answer. Game state remains versioned JSON in local preferences, and
+stale notification actions are rejected by session and render revision.
+
 ## Community and legal
 
 - Source code license: [Apache License 2.0](LICENSE)
@@ -41,6 +53,9 @@ explicitly selects.
   rendered button cannot mutate a newer state in the same session.
 - Compact notifications keep the collapsed view to title/status/score, while
   grid games hide verbose copy in the expanded layout to protect readability.
+- Compact notifications now retain a one-line objective hint when Android gives
+  the custom view enough space; expanded controls expose accessible action labels
+  and the game-specific feedback after each accepted move.
 
 ## Supported Android range
 
@@ -80,6 +95,7 @@ From the repository root on Windows:
 .\gradlew.bat lintDebug
 .\gradlew.bat check
 .\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
 ```
 
 On Linux or macOS:
@@ -231,11 +247,17 @@ production keystore. Configure protected release signing before distribution.
 
 ## Release status
 
-CI validates the debug build and uploads a debug APK. The release build uses
-minification and resource shrinking, but production release signing is not
-configured in this repository. An `app-release-unsigned.apk` is not a
-distributable release; configure a protected keystore outside the repository
-before publishing.
+Version 1.3.0 is a locally verified release candidate when the commands above
+complete successfully. CI validates the debug build and uploads a debug APK.
+The release build uses minification and resource shrinking, but production
+release signing is not configured in this repository. An
+`app-release-unsigned.apk` is not a distributable release; configure a protected
+keystore outside the repository before publishing.
+
+Automated JVM coverage includes all seven target game rules, invalid and terminal
+actions, deterministic generation constraints, scoring/streak progression, and
+state restoration. The Android notification smoke tests require a connected
+device or emulator and are not a substitute for manual OEM rendering checks.
 
 ## Project website
 
