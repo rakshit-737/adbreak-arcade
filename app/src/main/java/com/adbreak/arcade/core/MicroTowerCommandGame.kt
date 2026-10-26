@@ -30,7 +30,7 @@ class MicroTowerCommandGame : ArcadeGame {
     ) {
         GRUNT("G", "GRUNT", 2, 2, 1),
         RUNNER("R", "RUNNER", 1, 2, 1),
-        BRUTE("B", "BRUTE", 6, 3, 2),
+        BRUTE("B", "BRUTE", 9, 3, 2),
     }
 
     private enum class Result { PLAYING, WON, LOST }
@@ -154,22 +154,19 @@ class MicroTowerCommandGame : ArcadeGame {
         val tower = towers[cell]
         if (tower == null) {
             if (gold < selectedType.buildCost) {
-                feedback = "Need ${selectedType.buildCost} gold for ${selectedType.label}"
                 return false
             }
             gold -= selectedType.buildCost
             towers[cell] = Tower(selectedType, 1)
-            feedback = "${selectedType.label} tower placed · end turn to fire"
+            feedback = "${selectedType.label} placed · hits path ${coverage(cell, towers[cell]!!)} · end turn to fire"
             return true
         }
 
         if (tower.level >= MAX_TOWER_LEVEL) {
-            feedback = "Tower at cell ${cell + 1} is fully upgraded"
             return false
         }
         val cost = upgradeCost(tower.level)
         if (gold < cost) {
-            feedback = "Need $cost gold to upgrade cell ${cell + 1}"
             return false
         }
         gold -= cost
@@ -260,12 +257,16 @@ class MicroTowerCommandGame : ArcadeGame {
     }
 
     private fun inRange(cell: Int, tower: Tower, enemy: Enemy): Boolean {
-        val rangeInHalfSteps = when (tower.type) {
-            TowerType.DART -> 6 + (tower.level - 1) * 2
-            TowerType.FROST -> 4 + (tower.level - 1) * 2
-        }
-        return abs(cell - enemy.position * 2) <= rangeInHalfSteps
+        return abs(cell - enemy.position * 2) <= range(tower)
     }
+
+    private fun range(tower: Tower): Int = when (tower.type) {
+        TowerType.DART -> 1 + (tower.level - 1) * 2
+        TowerType.FROST -> 3 + (tower.level - 1) * 2
+    }
+
+    private fun coverage(cell: Int, tower: Tower): String =
+        PATH_CELLS.filter { abs(cell - it) <= range(tower) }.joinToString(",") { "${it + 1}" }
 
     private fun finishWin(message: String) {
         result = Result.WON
@@ -291,13 +292,19 @@ class MicroTowerCommandGame : ArcadeGame {
     override fun render(): GameViewState {
         val terminal = result != Result.PLAYING
         val subtitle = when (result) {
-            Result.PLAYING -> "Path 1→3→5→7→9 · ${selectedType.label} selected · tap pads to build/upgrade"
+            Result.PLAYING -> "Path 1→3→5→7→9 · ${if (wave == MAX_WAVES) "Final wave · " else ""}${pending.size} queued / ${enemies.size} active · next ${pending.firstOrNull()?.let { "${it.label} ${it.maxHealth}HP" } ?: "none"} · brackets show range"
             Result.WON -> "Victory · replay to command another defence"
             Result.LOST -> "Defeat · replay with better tower timing"
         }
         val board = (0 until TOTAL_CELLS).map { cell ->
             val content = if (cell in BUILD_CELLS) {
-                towers[cell]?.let { "${it.type.code}${it.level}" } ?: "BUILD"
+                val tower = towers[cell]
+                val preview = tower ?: Tower(selectedType, 1)
+                val covered = PATH_CELLS.filter { abs(cell - it) <= range(preview) }
+                val reach = "${covered.first() + 1}–${covered.last() + 1}"
+                val cost = if (tower == null) "${selectedType.buildCost}g" else
+                    if (tower.level == MAX_TOWER_LEVEL) "MAX" else "↑${upgradeCost(tower.level)}g"
+                "${tower?.let { "${it.type.code}${it.level}" } ?: "BUILD"} $cost [$reach]"
             } else {
                 val pathPosition = PATH_CELLS.indexOf(cell)
                 val occupants = enemies.filter { it.position == pathPosition }
@@ -308,13 +315,30 @@ class MicroTowerCommandGame : ArcadeGame {
         return GameViewState(
             title = title,
             subtitle = subtitle,
-            scoreLine = "Gold $gold  ·  Base $baseHealth/$MAX_BASE_HEALTH  ·  Wave $wave/$MAX_WAVES  ·  Turn $turns",
-            buttons = if (terminal) listOf("REPLAY") else listOf("TYPE ${selectedType.label}", "END TURN"),
+            scoreLine = "Gold $gold · Base $baseHealth/$MAX_BASE_HEALTH · Wave $wave/$MAX_WAVES · Turn $turns · " +
+                if (selectedType == TowerType.DART) "Dart 4g: 4 hit; upgrade +2 hit/range" else "Frost 5g: 2 hit + stop; upgrade +1 hit/range",
+            buttons = if (terminal) listOf("REPLAY") else listOf("TYPE ${selectedType.code}", "END TURN"),
             buttonActions = if (terminal) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY),
             cellButtons = board,
             cellActions = (0 until TOTAL_CELLS).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
             feedback = feedback,
             isTerminal = terminal,
+            progress = GameProgress(if (result == Result.WON) MAX_WAVES else wave - 1, MAX_WAVES, "Waves cleared"),
+            record = if (result == Result.WON) GameRecord(baseHealth, "Base saved") else null,
+            disabledActions = buildMap {
+                (0 until TOTAL_CELLS).forEach { cell ->
+                    val tower = towers[cell]
+                    val reason = when {
+                        terminal -> "Round complete"
+                        cell in PATH_CELLS -> "Enemy path — build on even pads"
+                        tower != null && tower.level == MAX_TOWER_LEVEL -> "Fully upgraded"
+                        tower != null && gold < upgradeCost(tower.level) -> "Needs ${upgradeCost(tower.level)} gold"
+                        tower == null && gold < selectedType.buildCost -> "Needs ${selectedType.buildCost} gold"
+                        else -> null
+                    }
+                    if (reason != null) put(GameAction.values()[GameAction.CELL_1.ordinal + cell], reason)
+                }
+            },
             phase = when (result) {
                 Result.PLAYING -> GamePhase.PLAYING
                 Result.WON -> GamePhase.WON
@@ -385,7 +409,7 @@ class MicroTowerCommandGame : ArcadeGame {
             restoredRoundsWon < 0 || restoredRoundsLost < 0
         ) return false
         if (restoredResult == Result.PLAYING && restoredHealth == 0) return false
-        if (restoredResult == Result.LOST && restoredHealth > 0) return false
+        if (restoredResult == Result.LOST && restoredHealth > 0 && restoredTurns < MAX_TURNS) return false
         if (restoredResult == Result.WON &&
             (restoredWave != MAX_WAVES || restoredHealth == 0 || restoredEnemies.isNotEmpty() || restoredPending.isNotEmpty())
         ) return false

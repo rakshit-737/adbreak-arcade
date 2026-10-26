@@ -48,10 +48,10 @@ class StarshipSurvivalGameTest {
     }
 
     @Test
-    fun scanRouteReachesFiniteEscapeAndSupportsReplay() {
+    fun hazardAwareRouteReachesFiniteEscapeAndSupportsReplay() {
         val game = StarshipSurvivalGame()
         repeat(StarshipSurvivalGame.TOTAL_EVENTS) {
-            assertTrue(game.apply(GameAction.CELL_1))
+            assertTrue(game.apply(if (it % 2 == 0) GameAction.CELL_2 else GameAction.CELL_1))
         }
 
         assertTrue(game.render().isTerminal)
@@ -70,8 +70,8 @@ class StarshipSurvivalGameTest {
     fun recklessNavigationCanReachFiniteFailure() {
         val game = StarshipSurvivalGame()
         repeat(StarshipSurvivalGame.TOTAL_EVENTS) {
-            assertTrue(game.apply(GameAction.PRIMARY))
             if (game.render().isTerminal) return@repeat
+            assertTrue(game.apply(GameAction.PRIMARY))
         }
 
         assertEquals(GamePhase.LOST, game.render().phase)
@@ -119,7 +119,9 @@ class StarshipSurvivalGameTest {
     @Test
     fun terminalSnapshotAndResetRemainUsable() {
         val game = StarshipSurvivalGame()
-        repeat(StarshipSurvivalGame.TOTAL_EVENTS) { assertTrue(game.apply(GameAction.CELL_1)) }
+        repeat(StarshipSurvivalGame.TOTAL_EVENTS) {
+            assertTrue(game.apply(if (it % 2 == 0) GameAction.CELL_2 else GameAction.CELL_1))
+        }
         val restored = StarshipSurvivalGame()
         assertTrue(restored.restore(game.encode()))
         assertEquals(GamePhase.WON, restored.render().phase)

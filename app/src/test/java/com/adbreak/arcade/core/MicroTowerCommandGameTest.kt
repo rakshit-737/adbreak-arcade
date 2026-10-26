@@ -16,7 +16,7 @@ class MicroTowerCommandGameTest {
         assertEquals("micro_tower_command", game.id)
         assertEquals(9, state.cellButtons.size)
         assertEquals(9, state.cellActions.size)
-        assertEquals(listOf("1:PATH", "2:BUILD", "3:PATH", "4:BUILD", "5:PATH", "6:BUILD", "7:PATH", "8:BUILD", "9:PATH"), state.cellButtons)
+        assertEquals(listOf("1:PATH", "2:BUILD 4g [1–3]", "3:PATH", "4:BUILD 4g [3–5]", "5:PATH", "6:BUILD 4g [5–7]", "7:PATH", "8:BUILD 4g [7–9]", "9:PATH"), state.cellButtons)
         assertEquals(listOf(GameAction.PRIMARY, GameAction.SECONDARY), state.buttonActions)
         assertEquals(GamePhase.PLAYING, state.phase)
         assertTrue(state.scoreLine.contains("Gold 12"))

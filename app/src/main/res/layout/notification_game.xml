@@ -4,14 +4,14 @@
     android:layout_height="wrap_content"
     android:background="@color/notification_surface"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="4dp">
 
     <TextView
         android:id="@+id/notificationGameTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="@color/notification_primary_text"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end" />
@@ -27,7 +27,7 @@
         android:id="@+id/notificationGameSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
+        android:layout_marginTop="2dp"
         android:textColor="@color/notification_secondary_text"
         android:textSize="13sp"
         android:maxLines="2"
@@ -36,43 +36,57 @@
         android:id="@+id/notificationGameScore"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:textColor="@color/notification_accent"
-        android:textSize="18sp"
+        android:textSize="14sp"
         android:textStyle="bold"
-        android:maxLines="1"
+        android:maxLines="2"
         android:ellipsize="end" />
+
+    <ProgressBar
+        android:id="@+id/notificationGameProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="2dp"
+        android:progressTint="@color/notification_accent"
+        android:indeterminate="false"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/notificationTopControls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:gravity="center"
-        android:orientation="horizontal">
-        <Button android:id="@+id/notificationButton1" style="@style/NotificationButton" />
-        <Button android:id="@+id/notificationButton2" style="@style/NotificationButton" />
-        <Button android:id="@+id/notificationButton3" style="@style/NotificationButton" />
-        <Button android:id="@+id/notificationButton4" style="@style/NotificationButton" />
+        android:orientation="vertical">
+        <LinearLayout style="@style/NotificationCellRow">
+            <Button android:id="@+id/notificationButton1" style="@style/NotificationButton" />
+            <Button android:id="@+id/notificationButton2" style="@style/NotificationButton" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/notificationTopRow2" style="@style/NotificationCellRow">
+            <Button android:id="@+id/notificationButton3" style="@style/NotificationButton" />
+            <Button android:id="@+id/notificationButton4" style="@style/NotificationButton" />
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/notificationCellControls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="2dp"
         android:orientation="vertical">
-        <LinearLayout style="@style/NotificationCellRow">
+        <LinearLayout android:id="@+id/notificationCellRow1" style="@style/NotificationCellRow">
             <Button android:id="@+id/notificationCell1" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell2" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell3" style="@style/NotificationCell" />
         </LinearLayout>
-        <LinearLayout style="@style/NotificationCellRow">
+        <LinearLayout android:id="@+id/notificationCellRow2" style="@style/NotificationCellRow">
             <Button android:id="@+id/notificationCell4" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell5" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell6" style="@style/NotificationCell" />
         </LinearLayout>
-        <LinearLayout style="@style/NotificationCellRow">
+        <LinearLayout android:id="@+id/notificationCellRow3" style="@style/NotificationCellRow">
             <Button android:id="@+id/notificationCell7" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell8" style="@style/NotificationCell" />
             <Button android:id="@+id/notificationCell9" style="@style/NotificationCell" />

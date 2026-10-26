@@ -7,20 +7,22 @@ class TriviaBlitzGame : ArcadeGame {
     override val title = "Trivia Blitz"
     override val description = "Answer a bite-sized general knowledge question from a rotating offline deck."
 
-    private data class Question(val prompt: String, val choices: List<String>, val answerIndex: Int)
+    private data class Question(val prompt: String, val choices: List<String>, val answerIndex: Int, val explanation: String)
     private val legacyQuestionCount = 4
 
     private val questions = listOf(
-        Question("Which planet is known as the Red Planet?", listOf("Venus", "Jupiter", "Mars", "Mercury"), 2),
-        Question("How many sides does a hexagon have?", listOf("5", "7", "8", "6"), 3),
-        Question("What gas do plants absorb?", listOf("Oxygen", "Carbon dioxide", "Nitrogen", "Helium"), 1),
-        Question("Which ocean is the largest?", listOf("Atlantic", "Indian", "Pacific", "Arctic"), 2),
-        Question("What is the fastest land animal?", listOf("Cheetah", "Horse", "Ostrich", "Lion"), 0),
-        Question("Which instrument has keys, pedals, and strings?", listOf("Violin", "Piano", "Flute", "Drum"), 1),
-        Question("What is the first prime number?", listOf("0", "1", "2", "3"), 2),
-        Question("Which shape has three sides?", listOf("Square", "Circle", "Triangle", "Hexagon"), 2)
+        Question("Which planet is known as the Red Planet?", listOf("Venus", "Jupiter", "Mars", "Mercury"), 2, "Mars: iron oxide gives its surface a red color"),
+        Question("How many sides does a hexagon have?", listOf("5", "7", "8", "6"), 3, "6: the prefix hexa means six"),
+        Question("Which gas do plants use in photosynthesis?", listOf("Oxygen", "Carbon dioxide", "Nitrogen", "Helium"), 1, "Carbon dioxide: plants use it to build sugars"),
+        Question("Which ocean is the largest?", listOf("Atlantic", "Indian", "Pacific", "Arctic"), 2, "Pacific: it covers the largest surface area"),
+        Question("What is the fastest land animal?", listOf("Cheetah", "Horse", "Ostrich", "Lion"), 0, "Cheetah: the fastest land sprinter"),
+        Question("Which instrument has keys, pedals, and strings?", listOf("Violin", "Piano", "Flute", "Drum"), 1, "Piano: keys drive hammers that strike strings"),
+        Question("What is the first prime number?", listOf("0", "1", "2", "3"), 2, "2: its only positive divisors are 1 and 2"),
+        Question("Which shape has three sides?", listOf("Square", "Circle", "Triangle", "Hexagon"), 2, "Triangle: tri means three")
     )
     private var questionIndex = 0
+    private var startIndex = 0
+    private var bounded = true
     private var attempts = 0
     private var score = 0
     private var streak = 0
@@ -28,7 +30,9 @@ class TriviaBlitzGame : ArcadeGame {
     private var feedback = "Answer the question"
 
     override fun reset() {
-        questionIndex = 0
+        startIndex = (startIndex + 1) % questions.size
+        questionIndex = startIndex
+        bounded = true
         attempts = 0
         score = 0
         streak = 0
@@ -41,6 +45,7 @@ class TriviaBlitzGame : ArcadeGame {
             reset()
             return true
         }
+        if (isOver()) return false
         val choiceIndex = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -50,34 +55,42 @@ class TriviaBlitzGame : ArcadeGame {
         }
         val question = questions[questionIndex]
         attempts++
-        if (choiceIndex == question.answerIndex) {
+        if ((choiceIndex + startIndex) % 4 == question.answerIndex) {
             score++
             streak++
             best = maxOf(best, streak)
-            feedback = "Correct — ${question.choices[question.answerIndex]}"
+            feedback = "Correct — ${question.explanation}"
         } else {
             streak = 0
-            feedback = "Correct answer: ${question.choices[question.answerIndex]}"
+            feedback = "Not quite — ${question.explanation}"
         }
         questionIndex = (questionIndex + 1) % questions.size
         return true
     }
 
+    private fun isOver() = bounded && attempts >= questions.size
+
     override fun render(): GameViewState {
         val question = questions[questionIndex]
         return GameViewState(
             title = title,
-            subtitle = question.prompt,
-            scoreLine = "Score $score  ·  Streak $streak  ·  Best $best",
-            buttons = question.choices,
-            buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
-            feedback = feedback
+            subtitle = if (isOver()) "Deck complete · $score/${questions.size} correct" else question.prompt,
+            scoreLine = "Correct $score/$attempts  ·  Streak $streak",
+            buttons = if (isOver()) listOf("NEW DECK") else question.choices.drop(startIndex % 4) + question.choices.take(startIndex % 4),
+            buttonActions = if (isOver()) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+            feedback = feedback,
+            isTerminal = isOver(),
+            phase = if (!isOver()) GamePhase.PLAYING else if (score == questions.size) GamePhase.WON else GamePhase.DRAW,
+            progress = if (bounded) GameProgress(attempts, questions.size, "Questions answered") else null,
+            record = if (isOver()) GameRecord(score, "Correct / ${questions.size}") else null
         )
     }
 
     override fun encode() = JSONObject().apply {
         put("v", 2)
         put("questionIndex", questionIndex)
+        put("startIndex", startIndex)
+        put("bounded", bounded)
         put("attempts", attempts)
         put("score", score)
         put("streak", streak)
@@ -96,13 +109,20 @@ class TriviaBlitzGame : ArcadeGame {
         val restoredBest = json.optInt("best", -1)
         val restoredFeedback = json.optString("feedback")
         val expectedDeckSize = if (version == 1) legacyQuestionCount else questions.size
+        val restoredStart = json.optInt("startIndex", 0)
+        val restoredBounded = json.optBoolean("bounded", false)
         if (restoredQuestionIndex !in 0 until expectedDeckSize || restoredAttempts < 0 ||
-            restoredQuestionIndex != restoredAttempts % expectedDeckSize ||
+            restoredStart !in 0 until expectedDeckSize ||
+            restoredQuestionIndex != (restoredStart + restoredAttempts % expectedDeckSize) % expectedDeckSize ||
+            (restoredBounded && restoredAttempts > expectedDeckSize) ||
             restoredScore < 0 || restoredScore > restoredAttempts || restoredStreak < 0 ||
             restoredStreak > restoredScore || restoredBest < restoredStreak ||
             restoredBest > restoredScore || restoredFeedback.isBlank()
         ) return false
         questionIndex = restoredQuestionIndex % questions.size
+        // Keep the pending legacy question while migrating its four-card cursor to eight cards.
+        startIndex = (questionIndex - restoredAttempts % questions.size + questions.size) % questions.size
+        bounded = restoredBounded
         attempts = restoredAttempts
         score = restoredScore
         streak = restoredStreak

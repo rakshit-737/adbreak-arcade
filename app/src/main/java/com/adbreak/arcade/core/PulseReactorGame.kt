@@ -16,7 +16,7 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
     override val description = "Repeat an escalating pulse pattern before the reactor overloads."
 
     companion object {
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val STARTING_LEVEL = 1
         private const val STARTING_LENGTH = 3
         private const val MAX_LEVEL = 10
@@ -39,6 +39,7 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
         private set
 
     private var sequence = emptyList<Int>()
+    private var runSeed = 0L
     private var input = mutableListOf<Int>()
     private var patternVisible = true
     private var ended = false
@@ -56,6 +57,7 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
         mistakes = 0
         mistakesRemaining = MISTAKE_BUDGET
         input.clear()
+        runSeed = random.nextLong()
         sequence = nextSequence(sequenceLength(level))
         patternVisible = true
         ended = false
@@ -91,7 +93,8 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
                 ended = true
                 feedback = "Reactor overload — the pattern was ${sequence.joinToString(" ")}"
             } else {
-                feedback = "Mismatch at pulse ${position + 1} — $mistakesRemaining mistakes left"
+                patternVisible = true
+                feedback = "Mismatch at pulse ${position + 1} — $mistakesRemaining retries left · re-memorize; streak reset"
             }
             return true
         }
@@ -128,9 +131,9 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
             won -> "Reactor stable — Level $level complete · replay for another run"
             ended -> "Reactor overloaded at Level $level · replay to try again"
             else -> if (patternVisible) {
-                "Level $level · Memorize ${sequence.joinToString(" ")} · Input 0/${sequence.size}"
+                "Level $level/$MAX_LEVEL · Memorize ${sequence.joinToString(" ")} · first tap hides it"
             } else {
-                "Level $level · Repeat the pattern · Input ${input.size}/${sequence.size}"
+                "Level $level/$MAX_LEVEL · Repeat the pattern · Input ${input.size}/${sequence.size}${if (input.size == sequence.lastIndex) " · Last pulse" else ""}"
             }
         },
         scoreLine = "Score $score  ·  Level $level  ·  Streak $streak  ·  Best $best  ·  Mistakes $mistakes/$MISTAKE_BUDGET",
@@ -143,6 +146,9 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
         ),
         feedback = feedback,
         isTerminal = ended,
+        progress = GameProgress(if (won) MAX_LEVEL else level - 1, MAX_LEVEL, "Patterns completed"),
+        record = best.takeIf { it > 0 }?.let { GameRecord(it, "Best streak") },
+        disabledActions = emptyMap(),
         phase = when {
             won -> GamePhase.WON
             ended -> GamePhase.LOST
@@ -152,6 +158,7 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
 
     override fun encode() = JSONObject().apply {
         put("v", VERSION)
+        put("runSeed", runSeed)
         put("sequence", JSONArray(sequence))
         put("input", JSONArray(input))
         put("patternVisible", patternVisible)
@@ -168,7 +175,9 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != VERSION) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..VERSION) return false
+        if (version == VERSION && (!json.has("runSeed") || json.isNull("runSeed"))) return false
 
         val sequenceArray = json.optJSONArray("sequence") ?: return false
         val inputArray = json.optJSONArray("input") ?: return false
@@ -188,6 +197,14 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
         val restoredEnded = json.optBoolean("terminal", false)
         val restoredWon = json.optBoolean("won", false)
         val restoredFeedback = json.optString("feedback")
+        // V1 did not save its generator. Keep the current pattern and derive a stable
+        // continuation seed; V2 saves it so future levels survive process recreation.
+        val restoredSeed = if (version == 1) restoredSequence.fold(17L) { seed, pulse -> seed * 31 + pulse }
+            else json.getLong("runSeed")
+        val completed = if (restoredWon) restoredLevel else restoredLevel - 1
+        val maximumEarnedScore = (1..completed.coerceIn(0, MAX_LEVEL)).sumOf {
+            sequenceLength(it) * it * (1 + (it - 1) / 3)
+        }
 
         val expectedLength = sequenceLength(restoredLevel)
         if (restoredLevel !in STARTING_LEVEL..MAX_LEVEL ||
@@ -197,9 +214,9 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
             restoredInput.size > restoredSequence.size ||
             restoredInput.indices.any { restoredInput[it] != restoredSequence[it] } ||
             restoredPatternVisible && restoredInput.isNotEmpty() ||
-            restoredScore !in 0..MAX_SCORE ||
-            restoredStreak !in 0..MAX_SCORE ||
-            restoredBest !in restoredStreak..MAX_SCORE ||
+            restoredScore !in 0..minOf(MAX_SCORE, maximumEarnedScore) ||
+            restoredStreak !in 0..completed ||
+            restoredBest !in restoredStreak..MAX_LEVEL ||
             restoredMistakes !in 0..MISTAKE_BUDGET ||
             restoredRemaining != MISTAKE_BUDGET - restoredMistakes ||
             restoredFeedback.isBlank()
@@ -213,8 +230,9 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
         ) return false
 
         sequence = restoredSequence
+        runSeed = restoredSeed
         input = restoredInput.toMutableList()
-        patternVisible = restoredPatternVisible
+        patternVisible = restoredPatternVisible || (version == 1 && restoredInput.isEmpty() && !restoredEnded)
         level = restoredLevel
         score = restoredScore
         streak = restoredStreak
@@ -229,6 +247,8 @@ class PulseReactorGame(private val random: Random = Random()) : ArcadeGame {
 
     private fun sequenceLength(currentLevel: Int): Int = STARTING_LENGTH + currentLevel - STARTING_LEVEL
 
-    private fun nextSequence(length: Int): List<Int> =
-        List(length) { random.nextInt(PULSE_COUNT) + 1 }
+    private fun nextSequence(length: Int): List<Int> {
+        val generator = Random(runSeed xor (length.toLong() * 1_000_003L))
+        return List(length) { generator.nextInt(PULSE_COUNT) + 1 }
+    }
 }

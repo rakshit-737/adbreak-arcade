@@ -40,15 +40,17 @@ class StarshipSurvivalGame : ArcadeGame {
         val prompt: String,
         val navigationShieldDamage: Int,
         val navigationHullDamage: Int,
+        val scanHullDamage: Int,
+        val evadeHullDamage: Int,
     )
 
     private val events = listOf(
-        Event("Asteroid field", "Debris blocks the jump lane", 1, 1),
-        Event("Radiation belt", "A bright storm crosses the route", 2, 2),
-        Event("Pirate patrol", "Weapons lock on from the dark", 3, 1),
-        Event("Ion nebula", "Charged gas scrambles the instruments", 1, 3),
-        Event("Gravity rift", "Tidal forces pull the ship sideways", 3, 2),
-        Event("Solar flare", "The escape vector is under fire", 2, 4),
+        Event("Asteroid field", "Evade the debris", 1, 1, 3, 0),
+        Event("Radiation belt", "Scan a sheltered route", 2, 2, 0, 4),
+        Event("Pirate patrol", "Scans reveal your position", 3, 1, 5, 0),
+        Event("Ion nebula", "Scan the ion currents", 1, 3, 0, 4),
+        Event("Gravity rift", "Evade the gravity well", 3, 2, 5, 0),
+        Event("Solar flare", "Scan the flare cycle", 2, 4, 0, 5),
     )
 
     var hull: Int = MAX_HULL
@@ -137,15 +139,19 @@ class StarshipSurvivalGame : ArcadeGame {
     }
 
     private fun resolveRepair(): Boolean {
-        if (energy < REPAIR_ENERGY_COST || supplies < REPAIR_SUPPLIES_COST) return false
+        if (energy < REPAIR_ENERGY_COST || supplies < REPAIR_SUPPLIES_COST ||
+            hull == MAX_HULL && shields == MAX_SHIELDS
+        ) return false
+        val event = events[eventIndex]
         val oldHull = hull
         val oldShields = shields
         energy -= REPAIR_ENERGY_COST
         supplies -= REPAIR_SUPPLIES_COST
         hull = (hull + REPAIR_HULL_GAIN).coerceAtMost(MAX_HULL)
         shields = (shields + REPAIR_SHIELDS_GAIN).coerceAtMost(MAX_SHIELDS)
+        applyDamage(event.navigationShieldDamage, event.navigationHullDamage)
         score += 8
-        val repaired = "hull +${hull - oldHull}, shields +${shields - oldShields}"
+        val repaired = "net hull ${hull - oldHull}, shields ${shields - oldShields}; hazard still hits"
         return finishTurn("Repaired · energy -$REPAIR_ENERGY_COST, supplies -$REPAIR_SUPPLIES_COST · $repaired")
     }
 
@@ -154,23 +160,26 @@ class StarshipSurvivalGame : ArcadeGame {
         val event = events[eventIndex]
         energy -= SCAN_ENERGY_COST
         supplies -= SCAN_SUPPLIES_COST
+        applyDamage(0, event.scanHullDamage)
         score += 6
-        return finishTurn("Scanned ${event.name} · energy -$SCAN_ENERGY_COST, supplies -$SCAN_SUPPLIES_COST · route clear")
+        return finishTurn("Scanned ${event.name} · energy -$SCAN_ENERGY_COST, supplies -$SCAN_SUPPLIES_COST · hull -${event.scanHullDamage}")
     }
 
     private fun resolveEvade(): Boolean {
         if (fuel < EVADE_FUEL_COST || energy < EVADE_ENERGY_COST) return false
         val event = events[eventIndex]
+        val oldHull = hull
         fuel -= EVADE_FUEL_COST
         energy -= EVADE_ENERGY_COST
-        applyDamage(EVADE_SHIELDS_COST, 0)
+        applyDamage(EVADE_SHIELDS_COST, event.evadeHullDamage)
         score += 9
-        return finishTurn("Evaded ${event.name} · fuel -$EVADE_FUEL_COST, energy -$EVADE_ENERGY_COST, shields -$EVADE_SHIELDS_COST")
+        return finishTurn("Evaded ${event.name} · fuel -$EVADE_FUEL_COST, energy -$EVADE_ENERGY_COST · hull -${oldHull - hull}")
     }
 
     private fun applyDamage(shieldDamage: Int, hullDamage: Int) {
+        val overflow = (shieldDamage - shields).coerceAtLeast(0)
         shields = (shields - shieldDamage).coerceAtLeast(0)
-        hull = (hull - hullDamage).coerceAtLeast(0)
+        hull = (hull - hullDamage - overflow).coerceAtLeast(0)
     }
 
     private fun finishTurn(actionFeedback: String): Boolean {
@@ -203,17 +212,29 @@ class StarshipSurvivalGame : ArcadeGame {
 
     override fun render(): GameViewState {
         val currentEvent = events.getOrNull(eventIndex)
+        val hullDeltas = currentEvent?.let {
+            val navigate = it.navigationHullDamage + (it.navigationShieldDamage - shields).coerceAtLeast(0)
+            val repairDamage = it.navigationHullDamage +
+                (it.navigationShieldDamage - minOf(MAX_SHIELDS, shields + REPAIR_SHIELDS_GAIN)).coerceAtLeast(0)
+            val repair = (minOf(MAX_HULL, hull + REPAIR_HULL_GAIN) - repairDamage).coerceAtLeast(0) - hull
+            listOf(-minOf(hull, navigate), repair, -minOf(hull, it.scanHullDamage),
+                -minOf(hull, it.evadeHullDamage + (EVADE_SHIELDS_COST - shields).coerceAtLeast(0)))
+        } ?: List(4) { 0 }
+        fun risk(index: Int): String {
+            val delta = hullDeltas[index]
+            return if (hull + delta <= 0) "BREACH" else "${if (delta >= 0) "+" else ""}${delta}HP"
+        }
         val subtitle = when {
             escaped -> "Escaped the frontier · replay to fly again"
             failed -> "Run lost · replay to try a new route"
             paused -> "Paused · sector ${eventIndex + 1}/$TOTAL_EVENTS"
-            currentEvent != null -> "Sector ${eventIndex + 1}/$TOTAL_EVENTS · ${currentEvent.name}: ${currentEvent.prompt}"
+            currentEvent != null -> "Sector ${eventIndex + 1}/$TOTAL_EVENTS${if (eventIndex == TOTAL_EVENTS - 1) " · Last jump" else ""} · ${currentEvent.name}"
             else -> "Choose a course"
         }
         val buttons = when {
             terminal -> listOf("REPLAY")
             paused -> listOf("RESUME", "RESET")
-            else -> listOf("NAVIGATE", "REPAIR", "SCAN", "EVADE")
+            else -> listOf("NAV ${risk(0)}\n2F1S", "FIX ${risk(1)}\n2E1S", "SCAN ${risk(2)}\n1E1S", "EVADE ${risk(3)}\n1F1E")
         }
         val actions = when {
             terminal -> listOf(GameAction.NEW_GAME)
@@ -223,11 +244,25 @@ class StarshipSurvivalGame : ArcadeGame {
         return GameViewState(
             title = title,
             subtitle = subtitle,
-            scoreLine = "Score $score · Hull $hull/$MAX_HULL · Shields $shields/$MAX_SHIELDS · Fuel $fuel · Energy $energy · Supplies $supplies",
+            scoreLine = "Hull $hull · Shields $shields · Fuel $fuel · Energy $energy · Supplies $supplies" + if (terminal) " · Score $score" else "",
             buttons = buttons,
             buttonActions = actions,
             feedback = feedback,
             isTerminal = terminal,
+            progress = GameProgress(if (hull == 0) (eventIndex - 1).coerceAtLeast(0) else eventIndex, TOTAL_EVENTS, "Sectors crossed"),
+            record = if (escaped) GameRecord(score, "Escape score") else null,
+            disabledActions = if (terminal || paused) emptyMap() else buildMap {
+                if (fuel < NAVIGATE_FUEL_COST || supplies < NAVIGATE_SUPPLIES_COST)
+                    put(GameAction.PRIMARY, "Needs 2 fuel and 1 supply")
+                if (energy < REPAIR_ENERGY_COST || supplies < REPAIR_SUPPLIES_COST)
+                    put(GameAction.SECONDARY, "Needs 2 energy and 1 supply")
+                else if (hull == MAX_HULL && shields == MAX_SHIELDS)
+                    put(GameAction.SECONDARY, "Hull and shields already full")
+                if (energy < SCAN_ENERGY_COST || supplies < SCAN_SUPPLIES_COST)
+                    put(GameAction.CELL_1, "Needs 1 energy and 1 supply")
+                if (fuel < EVADE_FUEL_COST || energy < EVADE_ENERGY_COST)
+                    put(GameAction.CELL_2, "Needs 1 fuel and 1 energy")
+            },
             phase = when {
                 escaped -> GamePhase.WON
                 failed -> GamePhase.LOST
@@ -279,7 +314,7 @@ class StarshipSurvivalGame : ArcadeGame {
         if (restoredHull !in 0..MAX_HULL || restoredShields !in 0..MAX_SHIELDS ||
             restoredFuel !in 0..MAX_FUEL || restoredEnergy !in 0..MAX_ENERGY ||
             restoredSupplies !in 0..MAX_SUPPLIES || restoredEventIndex !in 0..events.size ||
-            restoredScore !in 0..MAX_SCORE || restoredTurns != restoredEventIndex ||
+            restoredScore !in 0..minOf(MAX_SCORE, restoredEventIndex * 10) || restoredTurns != restoredEventIndex ||
             restoredFeedback.isBlank() || restoredEscaped && restoredFailed ||
             restoredEscaped && (restoredEventIndex != events.size || restoredHull == 0) ||
             restoredFailed && !(!restoredAffordable || restoredHull == 0) ||

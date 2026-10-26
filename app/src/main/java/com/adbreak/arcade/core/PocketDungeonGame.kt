@@ -20,7 +20,7 @@ class PocketDungeonGame : ArcadeGame {
         const val POTION_HEAL = 6
         const val GUARD_BLOCK = 2
 
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val MAX_SCORE = 1_000_000
         private const val MAX_GOLD = 1_000_000
     }
@@ -89,6 +89,9 @@ class PocketDungeonGame : ArcadeGame {
     private var enemyIndex = -1
     private var feedback = "Choose how to enter the room"
     private var guarding = false
+    private var combatBeat = 0
+    private var ward = 0
+    private var relic = false
 
     private val terminal: Boolean
         get() = won || lost
@@ -115,6 +118,9 @@ class PocketDungeonGame : ArcadeGame {
         enemyIndex = -1
         feedback = "Choose how to enter the room"
         guarding = false
+        combatBeat = 0
+        ward = 0
+        relic = false
     }
 
     override fun apply(action: GameAction): Boolean {
@@ -152,30 +158,40 @@ class PocketDungeonGame : ArcadeGame {
                 else -> false
             }
             RoomKind.LOOT -> when (action) {
-                GameAction.PRIMARY -> resolveLoot(goldFound = 14, potionFound = 1, label = "Opened the chest")
+                GameAction.PRIMARY -> {
+                    if (health <= 3) return false
+                    health -= 3
+                    relic = true
+                    resolveLoot(goldFound = 14, potionFound = 1, label = "Trap −3 HP · relic secured (+40 on escape)")
+                }
                 GameAction.SECONDARY -> resolveLoot(goldFound = 8, potionFound = 0, label = "Safely searched the cache")
                 else -> false
             }
             RoomKind.HEAL -> when (action) {
                 GameAction.PRIMARY -> resolveHeal(8, "Rested at the chapel")
-                GameAction.SECONDARY -> resolveHeal(4, "Prayed at the chapel")
+                GameAction.SECONDARY -> {
+                    ward = 3
+                    resolveHeal(4, "Prayed · ward absorbs next 3 damage")
+                }
                 else -> false
             }
         }
     }
 
     private fun startCombat(scouted: Boolean): Boolean {
+        if (scouted && potions == 0) return false
         val room = rooms[roomIndex]
         val selectedEnemy = enemies.getOrNull(room.enemyIndex) ?: return false
         enemyIndex = room.enemyIndex
-        enemyHealth = (selectedEnemy.maxHealth - if (scouted) 1 else 0).coerceAtLeast(1)
+        enemyHealth = (selectedEnemy.maxHealth - if (scouted) 2 else 0).coerceAtLeast(1)
+        if (scouted) potions--
         currentEnemyName = selectedEnemy.name
         inCombat = true
         guarding = false
+        combatBeat = 0
         turns++
-        if (scouted) score = safeAdd(score, 2)
         feedback = if (scouted) {
-            "Scouted ${selectedEnemy.name} — it starts weakened"
+            "Scouted ${selectedEnemy.name} · potion −1 · enemy HP −2"
         } else {
             "${selectedEnemy.name} attacks — choose a combat move"
         }
@@ -213,12 +229,13 @@ class PocketDungeonGame : ArcadeGame {
         val enemy = enemies.getOrNull(enemyIndex) ?: return false
         turns++
         guarding = false
-        enemyHealth -= ATTACK_DAMAGE
-        score = safeAdd(score, 10)
+        val damage = minOf(ATTACK_DAMAGE, enemyHealth)
+        enemyHealth -= damage
+        score = safeAdd(score, damage * 2)
         if (enemyHealth <= 0) {
             defeatEnemy(enemy)
         } else {
-            enemyTurn("Hit ${enemy.name} for $ATTACK_DAMAGE")
+            enemyTurn("Hit ${enemy.name} for $damage")
         }
         return true
     }
@@ -227,7 +244,6 @@ class PocketDungeonGame : ArcadeGame {
         val enemy = enemies.getOrNull(enemyIndex) ?: return false
         turns++
         guarding = true
-        score = safeAdd(score, 2)
         enemyTurn("Guarded against ${enemy.name}")
         return true
     }
@@ -239,7 +255,6 @@ class PocketDungeonGame : ArcadeGame {
         potions--
         val healed = minOf(POTION_HEAL, MAX_HEALTH - health)
         health += healed
-        score = safeAdd(score, 4)
         guarding = false
         enemyTurn("Potion restored $healed health")
         return true
@@ -247,14 +262,33 @@ class PocketDungeonGame : ArcadeGame {
 
     private fun enemyTurn(playerFeedback: String) {
         val enemy = enemies[enemyIndex]
-        val damage = (enemy.attack - if (guarding) GUARD_BLOCK else 0).coerceAtLeast(0)
+        val heavy = combatBeat == 2
+        val parry = heavy && guarding
+        val incoming = if (heavy) enemy.attack + 3 else enemy.attack
+        val blocked = if (parry) incoming else if (guarding) GUARD_BLOCK else 0
+        val unblocked = (incoming - blocked).coerceAtLeast(0)
+        val absorbed = minOf(ward, unblocked)
+        ward -= absorbed
+        val damage = unblocked - absorbed
         health = (health - damage).coerceAtLeast(0)
+        combatBeat = (combatBeat + 1) % 3
         guarding = false
+        if (parry) {
+            val counter = minOf(2, enemyHealth)
+            enemyHealth -= counter
+            score = safeAdd(score, counter * 2)
+            if (enemyHealth <= 0) {
+                defeatEnemy(enemy)
+                return
+            }
+        }
         if (health == 0) {
             lost = true
             feedback = "${enemy.name} hits for $damage — you were defeated"
         } else {
-            feedback = "$playerFeedback · ${enemy.name} hits for $damage"
+            feedback = if (parry) "Heavy strike parried · counter −2 enemy HP" else {
+                "$playerFeedback · ${enemy.name} hits for $damage${if (absorbed > 0) " · ward −$absorbed" else ""}"
+            }
         }
     }
 
@@ -264,6 +298,7 @@ class PocketDungeonGame : ArcadeGame {
         currentEnemyName = null
         enemyIndex = -1
         guarding = false
+        combatBeat = 0
         enemiesDefeated++
         gold = safeAdd(gold, enemy.loot)
         score = safeAdd(score, enemy.loot)
@@ -275,8 +310,8 @@ class PocketDungeonGame : ArcadeGame {
         roomIndex++
         if (roomIndex >= TOTAL_ROOMS) {
             won = true
-            score = safeAdd(score, 100)
-            feedback = "Dungeon cleared — score $score"
+            score = safeAdd(score, 100 + if (relic) 40 else 0)
+            feedback = "Dungeon cleared · ${if (relic) "relic escaped +40" else "relic skipped"} · score $score"
         } else {
             feedback = "$message · next: ${rooms[roomIndex].name}"
         }
@@ -297,6 +332,8 @@ class PocketDungeonGame : ArcadeGame {
                 feedback = feedback,
                 isTerminal = true,
                 phase = if (won) GamePhase.WON else GamePhase.LOST,
+                progress = dungeonProgress(),
+                record = score.takeIf { it > 0 }?.let { GameRecord(it, "Dungeon score") },
             )
         }
 
@@ -309,6 +346,8 @@ class PocketDungeonGame : ArcadeGame {
                 buttonActions = listOf(GameAction.RESUME, GameAction.RESET),
                 feedback = feedback,
                 phase = GamePhase.PAUSED,
+                progress = dungeonProgress(),
+                record = score.takeIf { it > 0 }?.let { GameRecord(it, "Dungeon score") },
             )
         }
 
@@ -316,26 +355,25 @@ class PocketDungeonGame : ArcadeGame {
         return if (inCombat) {
             GameViewState(
                 title = title,
-                subtitle = "${room.name} · ${currentEnemyName.orEmpty()} HP $enemyHealth · turn-based combat",
+                subtitle = "${currentEnemyName.orEmpty()} HP $enemyHealth · turn-based combat · ${enemyIntent()}",
                 scoreLine = scoreLine(),
-                buttons = buildList {
-                    add("ATTACK")
-                    add("GUARD")
-                    if (potions > 0) add("POTION x$potions")
-                },
-                buttonActions = buildList {
-                    add(GameAction.PRIMARY)
-                    add(GameAction.SECONDARY)
-                    if (potions > 0) add(GameAction.CELL_1)
-                },
+                buttons = listOf("HIT $ATTACK_DAMAGE", if (combatBeat == 2) "PARRY · counter 2" else "GUARD · block $GUARD_BLOCK", "POTION +$POTION_HEAL ($potions)"),
+                buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1),
                 feedback = feedback,
+                progress = dungeonProgress(),
+                record = score.takeIf { it > 0 }?.let { GameRecord(it, "Dungeon score") },
+                disabledActions = when {
+                    potions == 0 -> mapOf(GameAction.CELL_1 to "No potions left")
+                    health == MAX_HEALTH -> mapOf(GameAction.CELL_1 to "Health already full")
+                    else -> emptyMap()
+                },
             )
         } else {
             val roomButtons = when (room.kind) {
-                RoomKind.BATTLE -> listOf("FIGHT", "SCOUT")
-                RoomKind.BOSS -> listOf("CHALLENGE", "READ RUNES")
-                RoomKind.LOOT -> listOf("OPEN CHEST", "SEARCH SAFE")
-                RoomKind.HEAL -> listOf("REST", "PRAY")
+                RoomKind.BATTLE -> listOf("FIGHT", "SCOUT · −1 potion")
+                RoomKind.BOSS -> listOf("CHALLENGE", "SCOUT · −1 potion")
+                RoomKind.LOOT -> listOf("RELIC · −3 HP", "SAFE · +8 gold")
+                RoomKind.HEAL -> listOf("REST · +8 HP", "PRAY · +4 HP +3 ward")
             }
             GameViewState(
                 title = title,
@@ -343,13 +381,33 @@ class PocketDungeonGame : ArcadeGame {
                 scoreLine = scoreLine(),
                 buttons = roomButtons,
                 buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY),
-                feedback = feedback,
+                feedback = feedback + when (room.kind) {
+                    RoomKind.BATTLE, RoomKind.BOSS -> "\nScout spends 1 potion for −2 enemy HP · heavy every third reply: guard to parry"
+                    RoomKind.LOOT -> "\nRelic: +14 gold, +1 potion, +40 score if you escape · trap costs 3 HP"
+                    RoomKind.HEAL -> "\nWard absorbs damage after guarding · choose healing or protection"
+                },
+                progress = dungeonProgress(),
+                record = score.takeIf { it > 0 }?.let { GameRecord(it, "Dungeon score") },
+                disabledActions = when {
+                    room.kind == RoomKind.LOOT && health <= 3 -> mapOf(GameAction.PRIMARY to "Need more than 3 HP to survive the trap")
+                    room.enemyIndex >= 0 && potions == 0 -> mapOf(GameAction.SECONDARY to "Scouting needs 1 potion")
+                    else -> emptyMap()
+                },
             )
         }
     }
 
     private fun scoreLine(): String =
-        "Score $score · Health $health/$MAX_HEALTH · Potions $potions · Gold $gold · Rooms $roomsCleared/$TOTAL_ROOMS"
+        "Health $health/$MAX_HEALTH · Potions $potions · Ward $ward · Gold $gold · Score $score"
+
+    private fun dungeonProgress(): GameProgress =
+        GameProgress(roomsCleared, TOTAL_ROOMS, "Defeat the dragon · relic ${if (relic) "secured" else "optional +40"}")
+
+    private fun enemyIntent(): String = if (combatBeat == 2) {
+        "HEAVY ${enemies[enemyIndex].attack + 3} · guard parries"
+    } else {
+        "STRIKE ${enemies[enemyIndex].attack} · heavy in ${2 - combatBeat}"
+    }
 
     override fun encode(): String = JSONObject().apply {
         put("v", VERSION)
@@ -369,11 +427,15 @@ class PocketDungeonGame : ArcadeGame {
         put("won", won)
         put("lost", lost)
         put("feedback", feedback)
+        put("combatBeat", combatBeat)
+        put("ward", ward)
+        put("relic", relic)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != VERSION) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..VERSION) return false
 
         val restoredHealth = json.optInt("health", -1)
         val restoredPotions = json.optInt("potions", -1)
@@ -390,6 +452,9 @@ class PocketDungeonGame : ArcadeGame {
         val restoredWon = json.optBoolean("won", false)
         val restoredLost = json.optBoolean("lost", false)
         val restoredFeedback = json.optString("feedback")
+        val restoredBeat = if (version >= 2) json.optInt("combatBeat", -1) else 0
+        val restoredWard = if (version >= 2) json.optInt("ward", -1) else 0
+        val restoredRelic = if (version >= 2) json.optBoolean("relic", false) else false
         val restoredRoom = rooms.getOrNull(restoredRoomIndex)
         val completedEnemyCount = if (restoredRoomIndex in 0..TOTAL_ROOMS) {
             rooms.take(restoredRoomIndex).count { it.enemyIndex >= 0 }
@@ -406,6 +471,9 @@ class PocketDungeonGame : ArcadeGame {
             restoredEnemiesDefeated != completedEnemyCount || restoredTurns !in 0..MAX_SCORE ||
             restoredFeedback.isBlank() || restoredWon && restoredLost || restoredPaused && (restoredWon || restoredLost) ||
             restoredName != (expectedEnemyName ?: "")
+        ) return false
+        if (restoredBeat !in 0..2 || restoredWard !in 0..3 ||
+            !restoredInCombat && restoredBeat != 0 || restoredRelic && restoredRoomIndex < 2
         ) return false
 
         if (restoredWon) {
@@ -430,7 +498,11 @@ class PocketDungeonGame : ArcadeGame {
         health = restoredHealth
         potions = restoredPotions
         gold = restoredGold
-        score = restoredScore
+        // Old guard/potion points could be farmed. Keep progress and resources while
+        // retaining only a conservative finite achievement score for legacy runs.
+        score = if (version == 1) {
+            restoredGold.coerceAtMost(100) + restoredEnemiesDefeated * 10 + if (restoredWon) 100 else 0
+        } else restoredScore
         roomIndex = restoredRoomIndex
         roomsCleared = restoredRoomsCleared
         enemiesDefeated = restoredEnemiesDefeated
@@ -444,6 +516,9 @@ class PocketDungeonGame : ArcadeGame {
         lost = restoredLost
         feedback = restoredFeedback
         guarding = false
+        combatBeat = restoredBeat
+        ward = restoredWard
+        relic = restoredRelic
         true
     }.getOrDefault(false)
 

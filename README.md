@@ -254,6 +254,18 @@ production keystore. Configure protected release signing before distribution.
 
 ## Release status
 
+The second-pass gameplay review and its per-game evidence are in
+[`reports/GAMEPLAY_POLISH.md`](reports/GAMEPLAY_POLISH.md). The notification
+presentation, contrast measurements and outstanding device QA are documented in
+[`reports/notification-polish-qa.md`](reports/notification-polish-qa.md).
+
+Board games expose auxiliary moves in native notification actions. Use
+**Menu / details** for the full state, pause, restart or stop. At large font scale,
+the same menu selects other board rows. These controls never advance a game turn.
+Compact notifications summarize the current objective; expand to make moves.
+Personal records survive replay and reset, and are removed by **Clear selected
+game history**.
+
 Version 1.4.0 is a locally verified release candidate when the commands above
 complete successfully. CI validates the debug build and uploads a debug APK.
 The release build uses minification and resource shrinking, but production

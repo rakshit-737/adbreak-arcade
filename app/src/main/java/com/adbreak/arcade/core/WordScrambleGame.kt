@@ -7,7 +7,7 @@ import java.util.Random
 class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "word_scramble"
     override val title = "Word Scramble"
-    override val description = "Solve a clean, curated anagram and grow a vocabulary streak."
+    override val description = "Unscramble ten words; solve seven to clear the set."
 
     private val words = listOf(
         "orbit", "violet", "screen", "arcade", "puzzle", "signal", "planet", "button", "stream", "rocket",
@@ -28,6 +28,10 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
     private var solved = 0
     private var attempts = 0
     private var feedback = "Unscramble the letters"
+    private var runAttempts = 0
+    private var runCorrect = 0
+    private var recordEligible = true
+    private val finished get() = runAttempts >= 10
 
     private val difficulty: Int
         get() = (1 + solved / 3).coerceAtMost(5)
@@ -46,7 +50,9 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
         scramble = scramble(word)
 
         val distractors = words.filter { it != word }
-            .sortedWith(compareBy<String> { kotlin.math.abs(it.length - word.length) }.thenBy { it })
+            .shuffled(random)
+            .sortedWith(compareBy<String> { kotlin.math.abs(it.length - word.length) }
+                .thenByDescending { candidate -> word.toSet().sumOf { letter -> minOf(word.count { it == letter }, candidate.count { it == letter }) } })
         choices = (listOf(word) + distractors.take(3)).distinct().shuffled(random)
     }
 
@@ -63,6 +69,9 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
         incorrect = 0
         solved = 0
         attempts = 0
+        runAttempts = 0
+        runCorrect = 0
+        recordEligible = true
         feedback = "Unscramble the letters"
         newWord()
     }
@@ -72,6 +81,7 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
             reset()
             return true
         }
+        if (finished) return false
         val index = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -81,10 +91,12 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
         }
         if (index !in choices.indices) return false
         attempts++
+        runAttempts++
         if (choices[index] == word) {
             val points = difficulty
             score += points
             solved++
+            runCorrect++
             streak++
             best = maxOf(best, streak)
             feedback = "Correct — $word · +$points"
@@ -93,21 +105,28 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
             streak = 0
             feedback = "Not quite — the word was $word"
         }
-        newWord()
+        if (!finished) newWord()
         return true
     }
 
     override fun render() = GameViewState(
         title = title,
-        subtitle = "Unscramble: $scramble",
-        scoreLine = "Level $difficulty  ·  Score $score  ·  Solved $solved  ·  Accuracy $accuracyPercent%  ·  Streak $streak  ·  Best $best",
-        buttons = choices,
-        buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+        subtitle = if (finished) "${if (runCorrect >= 7) "Set clear" else "Practice complete"} · $runCorrect/10 solved" else "Unscramble: $scramble",
+        scoreLine = "Score $score  ·  Accuracy $accuracyPercent%  ·  Goal 7/10 solved",
+        buttons = if (finished) listOf("NEW SET") else choices,
+        buttonActions = if (finished) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
         feedback = feedback,
+        isTerminal = finished,
+        phase = if (!finished) GamePhase.PLAYING else if (runCorrect >= 7) GamePhase.WON else GamePhase.LOST,
+        progress = GameProgress(runAttempts, 10, "Words answered"),
+        record = if (finished && recordEligible) GameRecord(runCorrect, "Solved / 10") else null,
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 3)
+        put("v", 4)
+        put("runAttempts", runAttempts)
+        put("runCorrect", runCorrect)
+        put("recordEligible", recordEligible)
         put("word", word)
         put("scramble", scramble)
         put("lastWord", lastWord)
@@ -124,7 +143,7 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..3) return false
+        if (version !in 1..4) return false
 
         val restoredWord = json.optString("word")
         val restoredScramble = json.optString("scramble")
@@ -141,9 +160,15 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
         val restoredIncorrect = json.optInt("incorrect", 0)
         val restoredSolved = if (version >= 3) json.optInt("solved", restoredScore) else restoredScore
         val restoredAttempts = if (version >= 3) json.optInt("attempts", restoredSolved + restoredIncorrect) else restoredSolved + restoredIncorrect
+        val restoredRunAttempts = if (version >= 4) json.optInt("runAttempts", -1) else 0
+        val restoredRunCorrect = if (version >= 4) json.optInt("runCorrect", -1) else 0
+        val restoredEligible = version >= 4 && json.optBoolean("recordEligible", false)
         val restoredFeedback = if (version == 1) "Unscramble the letters" else json.optString("feedback")
 
-        if (restoredWord !in words || restoredScramble.isBlank() || restoredScramble == restoredWord ||
+        if (restoredRunAttempts !in 0..10 || restoredRunCorrect !in 0..restoredRunAttempts ||
+            restoredRunCorrect > restoredSolved || restoredRunAttempts - restoredRunCorrect > restoredIncorrect ||
+            (restoredEligible && (restoredSolved != restoredRunCorrect || restoredIncorrect != restoredRunAttempts - restoredRunCorrect)) ||
+            restoredWord !in words || restoredScramble.isBlank() || restoredScramble == restoredWord ||
             restoredScramble.toList().sorted() != restoredWord.toList().sorted() || restoredChoices.size != 4 ||
             restoredChoices.toSet().size != 4 || restoredChoices.any { it !in words } || restoredWord !in restoredChoices ||
             restoredScore !in 0..1_000_000 || restoredStreak !in 0..1_000_000 ||
@@ -161,6 +186,9 @@ class WordScrambleGame(private val random: Random = Random()) : ArcadeGame {
         incorrect = restoredIncorrect
         solved = restoredSolved
         attempts = restoredAttempts
+        runAttempts = restoredRunAttempts
+        runCorrect = restoredRunCorrect
+        recordEligible = restoredEligible
         feedback = restoredFeedback
         true
     }.getOrDefault(false)

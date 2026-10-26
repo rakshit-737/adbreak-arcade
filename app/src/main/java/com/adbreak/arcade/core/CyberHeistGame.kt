@@ -24,7 +24,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         const val MAX_TOOLS = 6
         const val MAX_INTEL = 6
 
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val STARTING_STEALTH = MAX_STEALTH
         private const val STARTING_TOOLS = MAX_TOOLS
         private const val STARTING_INTEL = MAX_INTEL
@@ -90,6 +90,9 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
     private var won = false
     private var failed = false
     private var feedback = "Choose an approach"
+    private var cacheMapped = false
+    private var cachesSecured = 0
+    private var cleanMissions = 0
 
     private val terminal: Boolean
         get() = won || failed
@@ -115,6 +118,9 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         won = false
         failed = false
         feedback = "Choose an approach"
+        cacheMapped = false
+        cachesSecured = 0
+        cleanMissions = 0
     }
 
     override fun apply(action: GameAction): Boolean {
@@ -147,6 +153,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         intel -= choice.intelCost
         security = (security + choice.securityRisk).coerceIn(0, currentMission.securityLimit)
         score = safeAdd(score, choice.points * currentMission.difficulty)
+        if (stageIndex == 0 && action == GameAction.CELL_1) cacheMapped = true
 
         if (security >= currentMission.securityLimit) {
             failed = true
@@ -157,19 +164,23 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         val resolvedStage = stageIndex
         stageIndex++
         if (resolvedStage == STAGES_PER_MISSION - 1) {
-            completeMission()
+            completeMission(cacheMapped && action == GameAction.CELL_2)
         } else if (!hasAffordableChoice(stageIndex, stealth, tools, intel)) {
             failed = true
             feedback = "Resources exhausted — no safe ${stageFor(stageIndex).label.lowercase()} route remains"
         } else {
-            feedback = "${stageFor(stageIndex).label} ready — ${currentMission.target} is still quiet"
+            feedback = "${stageFor(stageIndex).label} ready · Security $security/${currentMission.securityLimit}${if (cacheMapped) " · side cache mapped" else ""}"
         }
         return true
     }
 
-    private fun completeMission() {
+    private fun completeMission(securedCache: Boolean) {
         val completedMission = currentMission
-        val reward = completedMission.loot + completedMission.difficulty * 10
+        val clean = security == 0
+        if (securedCache) cachesSecured++
+        if (clean) cleanMissions++
+        val bonus = (if (securedCache) 50 else 0) + (if (clean) 25 else 0)
+        val reward = completedMission.loot + completedMission.difficulty * 10 + bonus
         score = safeAdd(score, reward)
         missionsCompleted++
 
@@ -182,6 +193,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
 
         missionIndex++
         stageIndex = 0
+        cacheMapped = false
         security = 0
         stealth = (stealth + 2).coerceAtMost(MAX_STEALTH)
         tools = (tools + 1).coerceAtMost(MAX_TOOLS)
@@ -191,7 +203,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
             failed = true
             feedback = "Resources exhausted — the next mission has no viable entry"
         } else {
-            feedback = "Mission ${missionsCompleted} cleared · next target: ${currentMission.target}"
+            feedback = "Mission $missionsCompleted cleared · +$reward${if (bonus > 0) " (bonus $bonus)" else ""} · resupply S+2 T+1 I+1"
         }
     }
 
@@ -207,7 +219,15 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         val buttons = when {
             terminal -> listOf("REPLAY")
             paused -> listOf("RESUME", "RESET")
-            else -> choicesFor(stageIndex).map { it.label }
+            else -> choicesFor(stageIndex).map { choice ->
+                val costs = buildList {
+                    if (choice.stealthCost > 0) add("S${choice.stealthCost}")
+                    if (choice.toolsCost > 0) add("T${choice.toolsCost}")
+                    if (choice.intelCost > 0) add("I${choice.intelCost}")
+                    add("A${if (choice.securityRisk > 0) "+" else ""}${choice.securityRisk}")
+                }
+                "${choice.label} · ${costs.joinToString(" ")}${if (security + choice.securityRisk >= mission.securityLimit) " !LOCKDOWN" else ""}"
+            }
         }
         val actions = when {
             terminal -> listOf(GameAction.NEW_GAME)
@@ -222,16 +242,27 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         return GameViewState(
             title = title,
             subtitle = subtitle,
-            scoreLine = "Score $score · Mission ${missionIndex + 1}/$TOTAL_MISSIONS · Security $security/${mission.securityLimit} · Stealth $stealth · Tools $tools · Intel $intel",
+            scoreLine = "Security $security/${mission.securityLimit} · Stealth(S) $stealth · Tools(T) $tools · Intel(I) $intel · Score $score",
             buttons = buttons,
             buttonActions = actions,
-            feedback = feedback,
+            feedback = feedback + if (terminal || paused) "" else {
+                "\nOptional: ${if (cacheMapped) "DATA DUMP secures cache +50" else "DEEP SCAN → DATA DUMP +50"} · finish at alarm(A) 0 +25"
+            },
             isTerminal = terminal,
             phase = when {
                 won -> GamePhase.WON
                 failed -> GamePhase.LOST
                 paused -> GamePhase.PAUSED
                 else -> GamePhase.PLAYING
+            },
+            progress = GameProgress(missionIndex * STAGES_PER_MISSION + stageIndex, TOTAL_MISSIONS * STAGES_PER_MISSION, "Secure 3 payloads · caches $cachesSecured · clean $cleanMissions"),
+            record = score.takeIf { it > 0 }?.let { GameRecord(it, "Heist score") },
+            disabledActions = if (terminal || paused) emptyMap() else buildMap {
+                actions.zip(choicesFor(stageIndex)).forEach { (action, choice) ->
+                    if (!choice.canAfford(stealth, tools, intel)) {
+                        put(action, "Need S${choice.stealthCost} T${choice.toolsCost} I${choice.intelCost}")
+                    }
+                }
             },
         )
     }
@@ -261,11 +292,15 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         put("won", won)
         put("failed", failed)
         put("feedback", feedback)
+        put("cacheMapped", cacheMapped)
+        put("cachesSecured", cachesSecured)
+        put("cleanMissions", cleanMissions)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != VERSION) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..VERSION) return false
 
         val missionArray = json.optJSONArray("missions") ?: return false
         if (missionArray.length() != TOTAL_MISSIONS) return false
@@ -294,6 +329,9 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         val restoredWon = json.optBoolean("won", false)
         val restoredFailed = json.optBoolean("failed", false)
         val restoredFeedback = json.optString("feedback")
+        val restoredCache = if (version >= 2) json.optBoolean("cacheMapped", false) else false
+        val restoredCaches = if (version >= 2) json.optInt("cachesSecured", -1) else 0
+        val restoredClean = if (version >= 2) json.optInt("cleanMissions", -1) else 0
 
         if (restoredMissionIndex !in 0 until TOTAL_MISSIONS ||
             restoredStageIndex !in 0..STAGES_PER_MISSION ||
@@ -302,6 +340,9 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
             restoredIntel !in 0..MAX_INTEL || restoredScore !in 0..MAX_SCORE ||
             restoredCompleted !in 0..TOTAL_MISSIONS || restoredFeedback.isBlank() ||
             restoredWon && restoredFailed || restoredPaused && (restoredWon || restoredFailed)
+        ) return false
+        if (restoredCaches !in 0..restoredCompleted || restoredClean !in 0..restoredCompleted ||
+            restoredCache && restoredStageIndex == 0
         ) return false
 
         val current = restoredMissions[restoredMissionIndex]
@@ -324,6 +365,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
                     restoredIntel,
                     current,
                     restoredSecurity,
+                    restoredCache,
                 )
             ) return false
         } else if (restoredFailed) {
@@ -336,6 +378,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
                     restoredIntel,
                     current,
                     restoredSecurity,
+                    restoredCache,
                 )
             if (!securityFailure && !resourceFailure) return false
         }
@@ -353,6 +396,9 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         won = restoredWon
         failed = restoredFailed
         feedback = restoredFeedback
+        cacheMapped = restoredCache
+        cachesSecured = restoredCaches
+        cleanMissions = restoredClean
         true
     }.getOrDefault(false)
 
@@ -361,8 +407,8 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         Mission(
             codename = "${blueprint.codename}-${index + 1}",
             target = blueprint.target,
-            securityLimit = 5 + random.nextInt(4),
-            difficulty = 1 + random.nextInt(3),
+            securityLimit = 6 + index,
+            difficulty = index + 1,
             loot = 80 + random.nextInt(121),
         )
     }
@@ -373,7 +419,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         else -> Stage.EXTRACT
     }
 
-    private fun choicesFor(index: Int): List<Choice> = when (index) {
+    private fun choicesFor(index: Int, mapped: Boolean = cacheMapped): List<Choice> = when (index) {
         0 -> listOf(
             Choice("PASSIVE SCAN", 0, 0, 1, 0, 8),
             Choice("GHOST PING", 1, 0, 0, 1, 10),
@@ -390,7 +436,7 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
             Choice("CLEAN EXIT", 2, 1, 0, -1, 25),
             Choice("FAST EXFIL", 1, 0, 1, 2, 22),
             Choice("DECOY ROUTE", 0, 1, 1, 0, 20),
-            Choice("DATA DUMP", 0, 1, 0, 1, 26),
+            Choice("DATA DUMP", 0, 1, if (mapped) 1 else 0, if (mapped) 3 else 1, 26),
         )
     }
 
@@ -409,7 +455,8 @@ class CyberHeistGame(private val random: Random = Random()) : ArcadeGame {
         currentIntel: Int,
         mission: Mission = currentMission,
         currentSecurity: Int = security,
-    ): Boolean = choicesFor(index).any { choice ->
+        mapped: Boolean = cacheMapped,
+    ): Boolean = choicesFor(index, mapped).any { choice ->
         choice.canAfford(currentStealth, currentTools, currentIntel) &&
             currentSecurityForCheck(currentSecurity = currentSecurity, mission = mission, choice = choice)
     }

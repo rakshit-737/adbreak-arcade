@@ -7,7 +7,7 @@ import java.util.Random
 class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "quick_math"
     override val title = "Quick Math"
-    override val description = "Solve fair arithmetic prompts as your streak raises the level."
+    override val description = "Answer ten arithmetic prompts; get seven right to clear the set."
 
     var correct = 0
         private set
@@ -29,6 +29,10 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
     private var previousPrompt = ""
     private var choices = listOf<Int>()
     private var feedback = "Choose an answer"
+    private var runAttempts = 0
+    private var runCorrect = 0
+    private var recordEligible = true
+    private val finished get() = runAttempts >= 10
 
     private val difficulty: Int
         get() {
@@ -98,6 +102,9 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
         incorrect = 0
         streak = 0
         score = 0
+        runAttempts = 0
+        runCorrect = 0
+        recordEligible = true
         feedback = "Choose an answer"
         previousPrompt = ""
         newQuestion()
@@ -108,6 +115,7 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
             reset()
             return true
         }
+        if (finished) return false
         val index = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -117,8 +125,10 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
         }
         if (index !in choices.indices) return false
         val level = difficulty
+        runAttempts++
         if (choices[index] == answer) {
             correct++
+            runCorrect++
             streak++
             best = maxOf(best, streak)
             val points = level + ((streak - 1) / 3).coerceAtMost(3)
@@ -130,21 +140,29 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
             streak = 0
             feedback = "Not quite — $left $operation $right = $answer"
         }
-        newQuestion()
+        if (!finished) newQuestion()
         return true
     }
 
     override fun render() = GameViewState(
         title = title,
-        subtitle = "Level $difficulty · What is $prompt?",
-        scoreLine = "Score $score  ·  Accuracy $accuracyPercent%  ·  Streak $streak  ·  Best $best",
-        buttons = choices.map { it.toString() },
-        buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+        subtitle = if (finished) "${if (runCorrect >= 7) "Set clear" else "Practice complete"} · $runCorrect/10 right"
+            else "Level $difficulty · What is $prompt?",
+        scoreLine = "Score $score  ·  Accuracy $accuracyPercent%  ·  Goal 7/10 right",
+        buttons = if (finished) listOf("NEW SET") else choices.map { it.toString() },
+        buttonActions = if (finished) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
         feedback = feedback,
+        isTerminal = finished,
+        phase = if (!finished) GamePhase.PLAYING else if (runCorrect >= 7) GamePhase.WON else GamePhase.LOST,
+        progress = GameProgress(runAttempts, 10, "Questions answered"),
+        record = if (finished && recordEligible) GameRecord(runCorrect, "Correct / 10") else null,
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 3)
+        put("v", 4)
+        put("runAttempts", runAttempts)
+        put("runCorrect", runCorrect)
+        put("recordEligible", recordEligible)
         put("correct", correct)
         put("incorrect", incorrect)
         put("streak", streak)
@@ -164,7 +182,7 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..3) return false
+        if (version !in 1..4) return false
 
         val restoredCorrect = json.optInt("correct", -1)
         val restoredIncorrect = json.optInt("incorrect", -1)
@@ -172,6 +190,9 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
         val restoredBest = json.optInt("best", -1)
         val restoredScore = json.optInt("score", restoredCorrect)
         val restoredBestScore = if (version >= 3) json.optInt("bestScore", restoredScore) else restoredScore
+        val restoredRunAttempts = if (version >= 4) json.optInt("runAttempts", -1) else 0
+        val restoredRunCorrect = if (version >= 4) json.optInt("runCorrect", -1) else 0
+        val restoredEligible = version >= 4 && json.optBoolean("recordEligible", false)
         val restoredAnswer = json.optInt("answer", Int.MIN_VALUE)
         val restoredPrompt = json.optString("prompt")
         val restoredChoices = if (version == 1) {
@@ -193,7 +214,10 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
             else -> return false
         }
 
-        if (restoredCorrect !in 0..1_000_000 || restoredIncorrect !in 0..1_000_000 ||
+        if (restoredRunAttempts !in 0..10 || restoredRunCorrect !in 0..restoredRunAttempts ||
+            restoredRunCorrect > restoredCorrect || restoredRunAttempts - restoredRunCorrect > restoredIncorrect ||
+            (restoredEligible && (restoredCorrect != restoredRunCorrect || restoredIncorrect != restoredRunAttempts - restoredRunCorrect)) ||
+            restoredCorrect !in 0..1_000_000 || restoredIncorrect !in 0..1_000_000 ||
             restoredStreak !in 0..1_000_000 || restoredBest !in restoredStreak..1_000_000 ||
             restoredScore !in 0..8_000_000 || restoredBestScore !in restoredScore..8_000_000 ||
             restoredChoices.size != 4 || restoredChoices.toSet().size != 4 ||
@@ -214,6 +238,9 @@ class QuickMathGame(private val random: Random = Random()) : ArcadeGame {
         best = restoredBest
         score = restoredScore
         bestScore = restoredBestScore
+        runAttempts = restoredRunAttempts
+        runCorrect = restoredRunCorrect
+        recordEligible = restoredEligible
         left = parsedLeft
         right = parsedRight
         operation = parsedOperation

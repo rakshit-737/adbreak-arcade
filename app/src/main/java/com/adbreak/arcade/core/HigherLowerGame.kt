@@ -6,15 +6,16 @@ import java.util.Random
 class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "higher_lower"
     override val title = "Higher or Lower"
-    override val description = "Narrow the fair range, spend five tries, and protect your streak."
+    override val description = "Find the hidden number; midpoint guesses always have enough tries."
 
     private var rangeMax = 20
     private var low = 1
     private var high = 20
     private var secret = random.nextInt(20) + 1
     private var attempts = 5
+    private var attemptLimit = 5
     private var message = "Guess 1–20"
-    private var feedback = "Use the midpoint or an edge guess"
+    private var feedback = "MID narrows safely; edges risk more tries"
     private var roundEnded = false
     var wins = 0
         private set
@@ -27,15 +28,18 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
     private var roundsCompleted = 0
 
     private fun nextRangeMax() = (20 + wins.coerceAtMost(6) * 5).coerceAtMost(50)
+    private fun guessesNeeded(maximum: Int) = if (maximum > 31) 6 else 5
 
     private fun startRound() {
+        if (!roundEnded && attempts < attemptLimit) streak = 0
         rangeMax = nextRangeMax()
         low = 1
         high = rangeMax
         secret = random.nextInt(rangeMax) + 1
-        attempts = 5
+        attemptLimit = guessesNeeded(rangeMax)
+        attempts = attemptLimit
         message = "Guess 1–$rangeMax"
-        feedback = "Use the midpoint or an edge guess"
+        feedback = "MID narrows safely; edges risk more tries"
         roundEnded = false
         lastRoundScore = 0
     }
@@ -48,6 +52,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
             return true
         }
         if (roundEnded) return false
+        if (action in duplicateActions()) return false
         val guess = when (action) {
             GameAction.PRIMARY -> (low + high) / 2
             GameAction.SECONDARY -> low
@@ -71,22 +76,27 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         }
 
         attempts--
-        streak = 0
+        if (guess < secret) low = guess + 1 else high = guess - 1
         if (attempts <= 0) {
+            streak = 0
             roundsCompleted++
             message = "Out of tries — it was $secret"
             feedback = "Round over — start a new round to try again"
             roundEnded = true
         } else if (guess < secret) {
-            low = (guess + 1).coerceAtMost(high)
             message = "Higher than $guess"
-            feedback = "The range is getting tighter"
+            feedback = "Ruled out $guess and below · $attempts tries left"
         } else {
-            high = (guess - 1).coerceAtLeast(low)
             message = "Lower than $guess"
-            feedback = "The range is getting tighter"
+            feedback = "Ruled out $guess and above · $attempts tries left"
         }
         return true
+    }
+
+    private fun duplicateActions(): Map<GameAction, String> = buildMap {
+        val midpoint = (low + high) / 2
+        if (low == midpoint) put(GameAction.SECONDARY, "Same guess as MID $midpoint")
+        if (high == midpoint) put(GameAction.CELL_1, "Same guess as MID $midpoint")
     }
 
     override fun render(): GameViewState {
@@ -100,21 +110,24 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         } else {
             listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1)
         }
-        val roundSummary = if (lastRoundScore > 0) "  ·  Last +$lastRoundScore" else ""
         return GameViewState(
             title,
             message,
-            "Range $low–$high  ·  Tries $attempts  ·  Streak $streak  ·  Best $bestStreak  ·  Score $score$roundSummary",
+            "Range $low–$high  ·  Tries $attempts/$attemptLimit  ·  Win streak $streak",
             labels,
             actions,
             feedback = feedback,
             isTerminal = roundEnded,
-            phase = if (!roundEnded) GamePhase.PLAYING else if (message.startsWith("Correct")) GamePhase.WON else GamePhase.LOST
+            phase = if (!roundEnded) GamePhase.PLAYING else if (message.startsWith("Correct")) GamePhase.WON else GamePhase.LOST,
+            progress = GameProgress(if (roundEnded && attempts > 0) rangeMax - 1 else rangeMax - (high - low + 1), rangeMax - 1, "Numbers ruled out"),
+            record = if (roundEnded && attempts > 0 && streak > 0) GameRecord(streak, "Round win streak") else null,
+            disabledActions = if (roundEnded) emptyMap() else duplicateActions(),
         )
     }
 
     override fun encode() = JSONObject().apply {
-        put("v", 3)
+        put("v", 4)
+        put("attemptLimit", attemptLimit)
         put("rangeMax", rangeMax)
         put("low", low)
         put("high", high)
@@ -134,7 +147,7 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..3) return false
+        if (version !in 1..4) return false
 
         val restoredRangeMax = json.optInt("rangeMax", 20)
         val restoredLow = json.optInt("low", -1)
@@ -150,10 +163,12 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         val restoredLastRoundScore = json.optInt("lastRoundScore", 0)
         val restoredStreak = json.optInt("streak", -1)
         val restoredRounds = json.optInt("roundsCompleted", 0)
+        val restoredLimit = if (version >= 4) json.optInt("attemptLimit", -1) else guessesNeeded(restoredRangeMax)
 
         if (restoredRangeMax !in 20..50 || restoredLow !in 1..restoredRangeMax ||
             restoredHigh !in restoredLow..restoredRangeMax || restoredSecret !in 1..restoredRangeMax ||
-            restoredAttempts !in 0..5 || restoredMessage.isBlank() || restoredFeedback.isBlank() ||
+            restoredLimit != guessesNeeded(restoredRangeMax) ||
+            restoredAttempts !in 0..(if (version >= 4) restoredLimit else 5) || restoredMessage.isBlank() || restoredFeedback.isBlank() ||
             restoredWins !in 0..1_000_000 || restoredBest !in 0..1_000_000 ||
             restoredStreak !in 0..restoredBest || restoredScore !in 0..10_000_000 ||
             restoredLastRoundScore !in 0..100 || restoredRounds !in 0..1_000_000) return false
@@ -170,7 +185,9 @@ class HigherLowerGame(private val random: Random = Random()) : ArcadeGame {
         low = restoredLow
         high = restoredHigh
         secret = restoredSecret
-        attempts = restoredAttempts
+        // Active legacy large-range boards receive the extra guess they should have had.
+        attempts = restoredAttempts + if (version < 4 && !restoredEnded) restoredLimit - 5 else 0
+        attemptLimit = restoredLimit
         message = restoredMessage
         feedback = restoredFeedback
         roundEnded = restoredEnded

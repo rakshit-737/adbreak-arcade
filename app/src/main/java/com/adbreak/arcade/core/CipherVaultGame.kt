@@ -13,7 +13,7 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
     data class ClueResult(val exact: Int, val misplaced: Int)
 
     companion object {
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val DIGIT_COUNT = 9
         private const val BASE_CODE_LENGTH = 3
         private const val MAX_DIFFICULTY = 5
@@ -46,7 +46,11 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
             return ClueResult(exact, misplaced)
         }
 
-        private fun codeLengthFor(difficulty: Int): Int = BASE_CODE_LENGTH + difficulty
+        private fun codeLengthFor(difficulty: Int): Int = BASE_CODE_LENGTH + if (difficulty >= 4) 1 else 0
+
+        private fun digitCountFor(difficulty: Int): Int = difficulty + 3
+
+        private fun attemptLimitFor(difficulty: Int): Int = MAX_ATTEMPTS + (difficulty - 1) / 2
 
         private fun difficultyFor(solved: Int): Int = (1 + solved).coerceAtMost(MAX_DIFFICULTY)
 
@@ -71,6 +75,17 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
     private var roundEnded = false
     private var won = false
     private var feedback = ""
+    private var legacyRules = false
+    private var history = mutableListOf<String>()
+    private var historyStart = 0
+    private var historyCursor = 0
+    private var cachedCandidates: Int? = null
+
+    private val attemptLimit: Int
+        get() = if (legacyRules) MAX_ATTEMPTS else attemptLimitFor(difficulty)
+
+    private val activeDigits: Int
+        get() = if (legacyRules) DIGIT_COUNT else digitCountFor(difficulty)
 
     var score = 0
         private set
@@ -86,10 +101,11 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
     }
 
     private fun startRound() {
+        legacyRules = false
         difficulty = difficultyFor(solved)
         val length = codeLengthFor(difficulty)
         secret = buildString(length) {
-            repeat(length) { append(random.nextInt(DIGIT_COUNT) + 1) }
+            repeat(length) { append(random.nextInt(activeDigits) + 1) }
         }
         draft = ""
         attempts = 0
@@ -98,7 +114,11 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         revealed = MutableList(length) { null }
         roundEnded = false
         won = false
-        feedback = "Build a $length-symbol guess"
+        history.clear()
+        historyStart = 0
+        historyCursor = 0
+        cachedCandidates = null
+        feedback = "Use 1–$activeDigits · repeats allowed · exact = right position; misplaced = wrong position"
     }
 
     override fun reset() {
@@ -115,6 +135,7 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
             return true
         }
         if (action == GameAction.NEW_GAME) {
+            if (!roundEnded && (attempts > 0 || hintsUsed > 0 || draft.isNotEmpty())) streak = 0
             startRound()
             return true
         }
@@ -142,6 +163,16 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
     }
 
     private fun addDigit(action: GameAction): Boolean {
+        if (!legacyRules && action == GameAction.CELL_9) {
+            if (draft.isEmpty()) {
+                if (history.isEmpty()) return false
+                historyCursor = (historyCursor + 1) % history.size
+                return true
+            }
+            draft = draft.dropLast(1)
+            feedback = "Last digit removed"
+            return true
+        }
         if (draft.length >= secret.length) return false
         val digit = when (action) {
             GameAction.CELL_1 -> 1
@@ -155,6 +186,7 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
             GameAction.CELL_9 -> 9
             else -> return false
         }
+        if (digit > activeDigits) return false
         draft += digit.toString()
         feedback = if (draft.length == secret.length) {
             "Guess ready — press SUBMIT"
@@ -171,34 +203,37 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         revealed[index] = secret[index].toString().toInt()
         hintsUsed++
         hintsAvailable--
+        cachedCandidates = null
         feedback = "Hint — position ${index + 1} is ${secret[index]}"
         return true
     }
 
     private fun submitDraft(): Boolean {
         val clues = evaluateClues(secret, draft)
+        history += draft
+        historyCursor = history.lastIndex
+        cachedCandidates = null
         attempts++
         draft = ""
 
         if (clues.exact == secret.length) {
             won = true
             roundEnded = true
-            solved++
-            streak++
+            solved = (solved + 1).coerceAtMost(MAX_SCORE)
+            streak = (streak + 1).coerceAtMost(MAX_SCORE)
             bestStreak = maxOf(bestStreak, streak)
             val roundScore = difficulty * 100 +
-                (MAX_ATTEMPTS - attempts) * 20 +
+                (attemptLimit - attempts) * 20 +
                 hintsAvailable * 15 +
                 (streak - 1) * 25
-            score = (score + roundScore).coerceAtMost(MAX_SCORE)
+            score = (score.toLong() + roundScore).coerceAtMost(MAX_SCORE.toLong()).toInt()
             feedback = "Vault opened — $secret · ${clues.exact} exact · +$roundScore"
-        } else if (attempts >= MAX_ATTEMPTS) {
+        } else if (attempts >= attemptLimit) {
             roundEnded = true
             won = false
             streak = 0
             feedback = "Vault sealed — code $secret · ${clues.exact} exact · ${clues.misplaced} misplaced"
         } else {
-            streak = 0
             feedback = "${clues.exact} exact · ${clues.misplaced} misplaced"
         }
         return true
@@ -208,7 +243,6 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         if (roundEnded) return secret.toList().joinToString(" ")
         return secret.indices.joinToString(" ") { index ->
             draft.getOrNull(index)?.toString()
-                ?: revealed[index]?.toString()
                 ?: "·"
         }
     }
@@ -229,36 +263,90 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         val pattern = displayPattern()
         val controls = when {
             roundEnded -> listOf("NEW VAULT" to GameAction.NEW_GAME)
-            draft.isEmpty() -> if (hintsAvailable > 0) {
-                listOf("HINT ($hintsAvailable)" to GameAction.SECONDARY)
-            } else {
-                emptyList()
-            }
-            else -> buildList {
-                add((if (draft.length == secret.length) "SUBMIT" else "CLEAR DRAFT") to GameAction.PRIMARY)
-                if (hintsAvailable > 0) add("HINT ($hintsAvailable)" to GameAction.SECONDARY)
-            }
+            else -> listOf(
+                (if (draft.length == secret.length) "SUBMIT" else "CLEAR DRAFT") to GameAction.PRIMARY,
+                "HINT ($hintsAvailable)" to GameAction.SECONDARY,
+            )
         }
         return GameViewState(
             title = title,
             subtitle = if (roundEnded) {
                 if (won) "Vault opened · code $secret" else "Vault sealed · code $secret"
             } else {
-                "Level $difficulty · Pattern $pattern · Attempt ${attempts + 1}/$MAX_ATTEMPTS"
+                "Match ${secret.length} digits (1–$activeDigits) · known ${revealed.joinToString("") { it?.toString() ?: "·" }} · ${if (legacyRules) "legacy vault" else "${candidateCount()} candidates"}"
             },
-            scoreLine = "Level $difficulty  ·  Guess $pattern  ·  Attempt $attempts/$MAX_ATTEMPTS  ·  Hints $hintsAvailable  ·  Score $score  ·  Streak $streak  ·  Best $bestStreak",
+            scoreLine = "Guess $pattern  ·  Attempts $attempts/$attemptLimit  ·  Hints $hintsAvailable  ·  Score $score  ·  Streak $streak",
             buttons = controls.map { it.first },
             buttonActions = controls.map { it.second },
-            cellButtons = if (roundEnded || draft.length == secret.length) emptyList() else (1..DIGIT_COUNT).map { it.toString() },
-            cellActions = if (roundEnded || draft.length == secret.length) emptyList() else (1..DIGIT_COUNT).map(::digitAction),
-            feedback = feedback,
+            cellButtons = if (roundEnded) emptyList() else (1..DIGIT_COUNT).map {
+                if (!legacyRules && it == 9) {
+                    if (draft.isEmpty() && history.isNotEmpty()) "CLUE ›" else "⌫ EDIT"
+                } else it.toString()
+            },
+            cellActions = if (roundEnded) emptyList() else (1..DIGIT_COUNT).map(::digitAction),
+            feedback = buildString {
+                // Keep the selected clue FIRST: the notification may show only one
+                // status line. CLUE cycles the saved log without spending a guess.
+                if (history.isNotEmpty()) {
+                    val guess = history[historyCursor]
+                    val clue = evaluateClues(secret, guess)
+                    append("Clue ${historyStart + historyCursor + 1}: $guess · ${clue.exact} exact ${clue.misplaced} misplaced\n")
+                }
+                append(feedback)
+                if (hintsUsed > 0) append("\nKnown: ${revealed.joinToString(" ") { it?.toString() ?: "·" }}")
+                if (historyStart > 0) append("\n$historyStart earlier guesses unavailable in legacy save")
+                if (history.isNotEmpty()) {
+                    append("\nHistory (E exact / M misplaced): ")
+                    append(history.joinToString("; ") { guess ->
+                        val clue = evaluateClues(secret, guess)
+                        "$guess=${clue.exact}E${clue.misplaced}M"
+                    })
+                }
+            },
             isTerminal = roundEnded,
             phase = when {
                 !roundEnded -> GamePhase.PLAYING
                 won -> GamePhase.WON
                 else -> GamePhase.LOST
             },
+            progress = GameProgress(
+                maxOf(revealed.count { it != null }, history.maxOfOrNull { evaluateClues(secret, it).exact } ?: 0),
+                secret.length,
+                "Best exact positions · ${attemptLimit - attempts} guesses left",
+            ),
+            record = bestStreak.takeIf { it > 0 }?.let { GameRecord(it, "Solved vault streak") },
+            disabledActions = if (roundEnded) emptyMap() else buildMap {
+                if (draft.isEmpty()) put(GameAction.PRIMARY, "Choose digits first")
+                if (hintsAvailable == 0) put(GameAction.SECONDARY, "No hints left")
+                (1..DIGIT_COUNT).forEach { digit ->
+                    val reason = when {
+                        !legacyRules && digit == 9 -> if (draft.isEmpty() && history.isEmpty()) "No draft or clues yet" else null
+                        digit > activeDigits -> "This vault uses 1–$activeDigits"
+                        draft.length == secret.length -> "Submit or edit this guess first"
+                        else -> null
+                    }
+                    if (reason != null) put(digitAction(digit), reason)
+                }
+            },
         )
+    }
+
+    /** Counts only candidates consistent with information already earned by the player. */
+    private fun candidateCount(): Int {
+        cachedCandidates?.let { return it }
+        val clues = history.map { evaluateClues(secret, it) }
+        var count = 0
+        fun visit(prefix: String) {
+            if (prefix.length == secret.length) {
+                if (history.indices.all { evaluateClues(prefix, history[it]) == clues[it] }) count++
+                return
+            }
+            val known = revealed[prefix.length]
+            if (known != null) visit(prefix + known) else (1..activeDigits).forEach { visit(prefix + it) }
+        }
+        visit("")
+        cachedCandidates = count
+        return count
     }
 
     override fun encode(): String = JSONObject().apply {
@@ -277,11 +365,19 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         put("streak", streak)
         put("bestStreak", bestStreak)
         put("feedback", feedback)
+        put("rules", if (legacyRules) 1 else 2)
+        put("history", JSONArray(history))
+        put("historyStart", historyStart)
+        put("historyCursor", historyCursor)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != VERSION) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..VERSION) return false
+        val rules = if (version == 1) 1 else json.optInt("rules", -1)
+        if (rules !in 1..2) return false
+        val restoredLegacy = rules == 1
 
         val restoredSecret = json.optString("secret", "")
         val restoredDraft = json.optString("draft", "")
@@ -307,8 +403,14 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         val restoredStreak = json.optInt("streak", -1)
         val restoredBest = json.optInt("bestStreak", -1)
         val restoredFeedback = json.optString("feedback", "")
+        val restoredHistoryStart = if (version == 1) restoredAttempts else json.optInt("historyStart", -1)
+        val restoredHistory = if (version == 1) mutableListOf() else {
+            val array = json.optJSONArray("history") ?: return false
+            MutableList(array.length()) { array.optString(it, "") }
+        }
+        val restoredCursor = if (version == 1) 0 else json.optInt("historyCursor", -1)
         val expectedLength = if (restoredDifficulty in 1..MAX_DIFFICULTY) {
-            codeLengthFor(restoredDifficulty)
+            if (restoredLegacy) BASE_CODE_LENGTH + restoredDifficulty else codeLengthFor(restoredDifficulty)
         } else {
             -1
         }
@@ -322,13 +424,15 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         } else {
             difficultyFor(restoredSolved.coerceAtLeast(0))
         }
+        val expectedAttempts = if (restoredLegacy) MAX_ATTEMPTS else attemptLimitFor(restoredDifficulty)
+        val expectedDigits = if (restoredLegacy) DIGIT_COUNT else digitCountFor(restoredDifficulty)
 
         if (restoredDifficulty !in 1..MAX_DIFFICULTY ||
             restoredDifficulty != expectedDifficulty ||
             restoredSecret.length != expectedLength ||
-            restoredSecret.any { it !in '1'..'9' } ||
+            restoredSecret.any { it !in '1'..('0' + expectedDigits) } ||
             restoredDraft.length > restoredSecret.length ||
-            restoredDraft.any { it !in '1'..'9' } ||
+            restoredDraft.any { it !in '1'..('0' + expectedDigits) } ||
             restoredRevealed.size != restoredSecret.length ||
             restoredRevealed.indices.any { index ->
                 val value = restoredRevealed[index]
@@ -337,19 +441,27 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
             restoredHintsUsed !in 0..expectedHintBudget ||
             restoredHintsAvailable != expectedHintBudget - restoredHintsUsed ||
             restoredRevealed.count { it != null } != restoredHintsUsed ||
-            restoredAttempts !in 0..MAX_ATTEMPTS ||
+            restoredAttempts !in 0..expectedAttempts ||
             restoredScore !in 0..MAX_SCORE ||
             restoredSolved !in 0..MAX_SCORE ||
             restoredStreak !in 0..restoredBest ||
             restoredBest !in 0..MAX_SCORE ||
             restoredFeedback.isBlank() ||
             restoredWon && !restoredEnded ||
-            restoredEnded != (restoredWon || restoredAttempts == MAX_ATTEMPTS) ||
+            restoredEnded != (restoredWon || restoredAttempts == expectedAttempts) ||
             restoredWon && restoredStreak <= 0 ||
             !restoredWon && restoredEnded && restoredStreak != 0 ||
             restoredEnded && restoredDraft.isNotEmpty() ||
             restoredEnded && restoredAttempts == 0 ||
             restoredWon && restoredSolved == 0
+        ) return false
+        if (restoredHistoryStart !in 0..restoredAttempts ||
+            restoredCursor !in 0..restoredHistory.lastIndex.coerceAtLeast(0) ||
+            !restoredLegacy && restoredHistoryStart != 0 ||
+            restoredHistory.size + restoredHistoryStart != restoredAttempts ||
+            restoredHistory.any { guess -> guess.length != expectedLength || guess.any { it !in '1'..('0' + expectedDigits) } } ||
+            restoredHistory.dropLast(1).any { it == restoredSecret } ||
+            restoredHistory.isNotEmpty() && (restoredHistory.last() == restoredSecret) != restoredWon
         ) return false
 
         secret = restoredSecret
@@ -366,6 +478,11 @@ class CipherVaultGame(private val random: Random = Random()) : ArcadeGame {
         streak = restoredStreak
         bestStreak = restoredBest
         feedback = restoredFeedback
+        legacyRules = restoredLegacy
+        history = restoredHistory
+        historyStart = restoredHistoryStart
+        historyCursor = restoredCursor
+        cachedCandidates = null
         true
     }.getOrDefault(false)
 }

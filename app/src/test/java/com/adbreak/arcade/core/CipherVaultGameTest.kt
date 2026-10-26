@@ -24,8 +24,10 @@ class CipherVaultGameTest {
         assertEquals(first.render(), second.render())
         assertEquals(9, first.render().cellButtons.size)
         assertEquals(9, first.render().cellActions.size)
-        assertEquals(listOf("HINT (3)"), first.render().buttons)
-        assertEquals(listOf(GameAction.SECONDARY), first.render().buttonActions)
+        // Empty/exhausted controls stay visible with an explicit disabled reason.
+        assertEquals(listOf("CLEAR DRAFT", "HINT (3)"), first.render().buttons)
+        assertEquals(listOf(GameAction.PRIMARY, GameAction.SECONDARY), first.render().buttonActions)
+        assertTrue(first.render().disabledActions.containsKey(GameAction.PRIMARY))
         assertTrue(first.render().cellButtons.none { it.contains("EditText", ignoreCase = true) })
         assertEquals(JSONObject(first.encode()).getString("secret").length, first.render().scoreLine.substringAfter("Guess ").substringBefore("  ·").count { it == '·' })
     }
@@ -60,7 +62,7 @@ class CipherVaultGameTest {
         assertTrue(game.apply(GameAction.SECONDARY))
         assertEquals(2, JSONObject(game.encode()).getInt("hintsAvailable"))
         assertTrue(game.apply(GameAction.CELL_4))
-        assertTrue(game.apply(GameAction.CELL_5))
+        assertTrue(game.apply(GameAction.CELL_3)) // beginner vault uses digits 1–4
 
         val encoded = game.encode()
         val restored = CipherVaultGame(Random(99))

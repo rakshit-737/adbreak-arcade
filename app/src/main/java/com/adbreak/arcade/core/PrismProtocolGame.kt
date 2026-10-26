@@ -141,6 +141,42 @@ class PrismProtocolGame(private val initialLevel: Int = 0) : ArcadeGame {
                 moveLimit = 3,
                 solution = listOf(0),
             ),
+            Level(
+                name = "Deep Relay",
+                width = 7,
+                height = 7,
+                source = Cell(6, 0),
+                sourceDirection = Direction.RIGHT,
+                target = Cell(0, 6),
+                mirrors = listOf(
+                    Mirror(Cell(6, 2), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(4, 2), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(4, 4), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(2, 4), MirrorOrientation.SLASH),
+                    Mirror(Cell(2, 1), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(0, 1), MirrorOrientation.SLASH),
+                ),
+                moveLimit = 6,
+                solution = listOf(0, 1, 2, 3),
+            ),
+            Level(
+                name = "Return Transmission",
+                width = 7,
+                height = 7,
+                source = Cell(0, 6),
+                sourceDirection = Direction.LEFT,
+                target = Cell(6, 0),
+                mirrors = listOf(
+                    Mirror(Cell(0, 4), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(2, 4), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(2, 2), MirrorOrientation.BACKSLASH),
+                    Mirror(Cell(4, 2), MirrorOrientation.SLASH),
+                    Mirror(Cell(4, 5), MirrorOrientation.SLASH),
+                    Mirror(Cell(6, 5), MirrorOrientation.BACKSLASH),
+                ),
+                moveLimit = 8,
+                solution = listOf(0, 1, 2, 3, 4, 5),
+            ),
         ).also { configured ->
             require(configured.all(::validateLevel)) { "Invalid Prism Protocol level set" }
         }
@@ -251,6 +287,7 @@ class PrismProtocolGame(private val initialLevel: Int = 0) : ArcadeGame {
                 cell.row in 0 until level.height && cell.column in 0 until level.width
 
             if (!inside(level.source) || !inside(level.target) ||
+                level.mirrors.any { !inside(it.cell) } ||
                 level.mirrors.map { it.cell }.toSet().size != level.mirrors.size ||
                 level.blockers.any { !inside(it) }
             ) return false
@@ -415,20 +452,26 @@ class PrismProtocolGame(private val initialLevel: Int = 0) : ArcadeGame {
 
     override fun render(): GameViewState {
         val result = currentBeam()
+        fun coordinate(cell: Cell) = "${cell.row + 1},${cell.column + 1}"
+        val route = result.path.mapNotNull { cell ->
+            level.mirrors.indexOfFirst { it.cell == cell }.takeIf { it >= 0 }?.let { "M${it + 1}" }
+        }.joinToString("→").ifEmpty { "none" }
+        val geometry = "S(${coordinate(level.source)}) ${level.sourceDirection.name} → T(${coordinate(level.target)})"
         val subtitle = when {
             won -> "${level.name} solved — replay for the next protocol"
             lost -> "${level.name} failed — replay to try again"
             paused -> "Paused · ${level.name}"
-            else -> "${level.name} · rotate mirrors to hit the target"
+            else -> "$geometry · ${if (level.moveLimit - moves == 1) "Last flip" else "${level.moveLimit - moves} flips left"}"
         }
         val cells = level.mirrors.mapIndexed { index, mirror ->
             val orientation = currentOrientations()[index].symbol()
             "${if (selectedMirror == index) ">" else ""}M${index + 1} $orientation (${mirror.cell.row + 1},${mirror.cell.column + 1})"
         }
         val buttons = when {
-            terminal -> listOf("REPLAY")
+            won -> listOf("NEXT")
+            lost -> listOf("RETRY")
             paused -> listOf("RESUME", "RESET")
-            else -> listOf("ROTATE ↻", "ROTATE ↺")
+            else -> listOf("FLIP ↻", "FLIP ↺")
         }
         val actions = when {
             terminal -> listOf(GameAction.NEW_GAME)
@@ -445,13 +488,25 @@ class PrismProtocolGame(private val initialLevel: Int = 0) : ArcadeGame {
         return GameViewState(
             title = title,
             subtitle = subtitle,
-            scoreLine = "Moves $moves/${level.moveLimit} · Solved $wins · Best ${if (bestMoves == 0) "—" else bestMoves} · Beam $boardStatus",
+            scoreLine = "Moves $moves/${level.moveLimit} · Beam $route → $boardStatus" +
+                if (level.blockers.isEmpty()) "" else " · Blocks ${level.blockers.joinToString(";") { coordinate(it) }}",
             buttons = buttons,
             buttonActions = actions,
             cellButtons = cells,
             cellActions = level.mirrors.indices.map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
             feedback = feedback,
             isTerminal = terminal,
+            progress = GameProgress(if (won) 1 else 0, 1, "Target linked"),
+            record = wins.takeIf { it > 0 }?.let { GameRecord(it, "Protocols solved") },
+            disabledActions = buildMap {
+                if (!terminal && !paused && selectedMirror == null) {
+                    put(GameAction.PRIMARY, "Select a mirror first")
+                    put(GameAction.SECONDARY, "Select a mirror first")
+                }
+                if (terminal || paused) level.mirrors.indices.forEach {
+                    put(GameAction.values()[GameAction.CELL_1.ordinal + it], if (paused) "Resume to select" else "Round complete")
+                }
+            },
             phase = when {
                 won -> GamePhase.WON
                 lost -> GamePhase.LOST
@@ -499,7 +554,7 @@ class PrismProtocolGame(private val initialLevel: Int = 0) : ArcadeGame {
         val restoredFeedback = json.optString("feedback")
         val restoredTerminal = restoredWon || restoredLost
         if (restoredMoves !in 0..restoredLevel.moveLimit || restoredWins < 0 ||
-            restoredBest < 0 || restoredBest > restoredLevel.moveLimit ||
+            restoredBest < 0 || restoredBest > levels.maxOf { it.moveLimit } ||
             restoredSelected !in -1 until restoredLevel.mirrors.size ||
             restoredFeedback.isBlank() || restoredWon && restoredLost ||
             restoredPaused && (restoredWon || restoredLost) ||

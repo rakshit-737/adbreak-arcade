@@ -24,9 +24,10 @@ class NeonTacticsGame : ArcadeGame {
         const val MAX_ENEMY_HP = 2
         const val ENEMY_DAMAGE = 2
         const val DEFEND_REDUCTION = 1
+        const val DATA_CELL = 2
 
         private const val MAX_COUNTER = 1_000_000
-        private const val VERSION = 1
+        private const val VERSION = 2
 
         /** Maps a zero-based board cell to the shared action set. */
         fun actionForCell(index: Int): GameAction? =
@@ -64,6 +65,7 @@ class NeonTacticsGame : ArcadeGame {
 
     private var over = false
     private var won = false
+    private var dataRecovered = false
     private var feedback = "Reach CORE at cell 7 · adjacent ENEMY cells are attack targets"
 
     init {
@@ -89,7 +91,8 @@ class NeonTacticsGame : ArcadeGame {
         score = 0
         over = false
         won = false
-        feedback = "Reach CORE at cell 7 · adjacent ENEMY cells are attack targets"
+        dataRecovered = false
+        feedback = "CORE at 7 wins · optional DATA at 3 +20 · disable DRONE +30"
     }
 
     override fun apply(action: GameAction): Boolean {
@@ -113,7 +116,7 @@ class NeonTacticsGame : ArcadeGame {
 
     private fun defend(telegraphedIntent: EnemyIntent): Boolean {
         finishPlayerTurn(
-            actionScore = 2,
+            actionScore = 0,
             actionFeedback = "Defend raised · incoming strike reduced by $DEFEND_REDUCTION",
             telegraphedIntent = telegraphedIntent,
             defending = true,
@@ -124,8 +127,8 @@ class NeonTacticsGame : ArcadeGame {
     private fun resolveCell(index: Int, telegraphedIntent: EnemyIntent): Boolean {
         if (index !in 0 until CELL_COUNT || index == OBSTACLE_CELL || index == playerCell) return false
 
-        if (index == enemyCell) {
-            if (!areAdjacent(playerCell, enemyCell) || enemyHp <= 0) return false
+        if (index == enemyCell && enemyHp > 0) {
+            if (!areAdjacent(playerCell, enemyCell)) return false
             enemyHp--
             finishPlayerTurn(
                 actionScore = 15,
@@ -143,20 +146,22 @@ class NeonTacticsGame : ArcadeGame {
         if (!areAdjacent(playerCell, index)) return false
 
         playerCell = index
+        val recoveredNow = index == DATA_CELL && !dataRecovered
+        if (recoveredNow) dataRecovered = true
         if (playerCell == OBJECTIVE_CELL) {
-            turn++
-            score += 25
+            turn = (turn + 1).coerceAtMost(MAX_COUNTER)
+            score += extractionReward(playerHp, turn)
             bestScore = maxOf(bestScore, score)
             over = true
             won = true
-            wins++
-            feedback = "CORE secured · tactical win · replay to run it again"
+            wins = (wins + 1).coerceAtMost(MAX_COUNTER)
+            feedback = "CORE secured · ${if (dataRecovered) "DATA recovered" else "DATA skipped"} · score $score · replay"
             return true
         }
 
         finishPlayerTurn(
-            actionScore = 10,
-            actionFeedback = "Moved to cell ${index + 1}",
+            actionScore = if (recoveredNow) 20 else 0,
+            actionFeedback = if (recoveredNow) "DATA recovered · +20 · reach CORE" else "Moved to cell ${index + 1}",
             telegraphedIntent = telegraphedIntent,
             defending = false,
         )
@@ -169,7 +174,7 @@ class NeonTacticsGame : ArcadeGame {
         telegraphedIntent: EnemyIntent,
         defending: Boolean,
     ) {
-        turn++
+        turn = (turn + 1).coerceAtMost(MAX_COUNTER)
         score += actionScore
         bestScore = maxOf(bestScore, score)
         feedback = actionFeedback
@@ -180,7 +185,7 @@ class NeonTacticsGame : ArcadeGame {
         if (!over && playerHp <= 0) {
             over = true
             won = false
-            losses++
+            losses = (losses + 1).coerceAtMost(MAX_COUNTER)
             feedback = "Signal lost · the DRONE overwhelmed you · replay"
         }
     }
@@ -259,7 +264,7 @@ class NeonTacticsGame : ArcadeGame {
         val currentIntent = intent
         val subtitle = when {
             won -> "CORE secured · replay to run it again"
-            !over -> "Reach CORE at cell 7 · ${intentText(currentIntent)}"
+            !over -> "CORE 7 wins · ${intentText(currentIntent)}"
             else -> "Signal lost · replay to try the encounter again"
         }
         val buttons = if (terminal) listOf("REPLAY") else listOf("DEFEND")
@@ -267,7 +272,7 @@ class NeonTacticsGame : ArcadeGame {
         return GameViewState(
             title = title,
             subtitle = subtitle,
-            scoreLine = "HP $playerHp/$MAX_PLAYER_HP · DRONE $enemyHp/$MAX_ENEMY_HP · Turn $turn · Score $score · W $wins L $losses",
+            scoreLine = "HP $playerHp/$MAX_PLAYER_HP · DRONE $enemyHp/$MAX_ENEMY_HP · DATA 3 ${if (dataRecovered) "secured" else "+20 optional"} · Turn $turn · Score $score",
             buttons = buttons,
             buttonActions = actions,
             cellButtons = (0 until CELL_COUNT).map { cellLabel(it) },
@@ -279,6 +284,20 @@ class NeonTacticsGame : ArcadeGame {
                 terminal -> GamePhase.LOST
                 else -> GamePhase.PLAYING
             },
+            progress = GameProgress(if (won) 1 else 0, 1, "Secure CORE · extract healthy and quickly for bonus"),
+            record = score.takeIf { it > 0 }?.let { GameRecord(it, "Tactical score") },
+            disabledActions = buildMap {
+                (0 until CELL_COUNT).forEach { cell ->
+                    val reason = when {
+                        terminal -> "Encounter finished — replay"
+                        cell == OBSTACLE_CELL -> "Blocked cell"
+                        cell == playerCell -> "You are here"
+                        !areAdjacent(playerCell, cell) -> "Choose an adjacent cell"
+                        else -> null
+                    }
+                    if (reason != null) put(actionForCell(cell)!!, reason)
+                }
+            },
         )
     }
 
@@ -288,11 +307,12 @@ class NeonTacticsGame : ArcadeGame {
         index == playerCell -> "${index + 1}:YOU"
         index == enemyCell && enemyHp > 0 -> "${index + 1}:DRONE($enemyHp)"
         index == OBJECTIVE_CELL -> "${index + 1}:CORE"
+        index == DATA_CELL && !dataRecovered -> "${index + 1}:DATA"
         else -> "${index + 1}:·"
     }
 
     private fun intentText(value: EnemyIntent): String = when (value) {
-        EnemyIntent.ADVANCE -> "INTENT: ADVANCE"
+        EnemyIntent.ADVANCE -> "INTENT: ADVANCE 1 toward you (no hit)"
         EnemyIntent.STRIKE -> "INTENT: STRIKE for $ENEMY_DAMAGE"
         EnemyIntent.DISABLED -> "INTENT: DISABLED"
     }
@@ -310,13 +330,15 @@ class NeonTacticsGame : ArcadeGame {
         put("bestScore", bestScore)
         put("over", over)
         put("won", won)
+        put("dataRecovered", dataRecovered)
         put("intent", intent.name)
         put("feedback", feedback)
     }.toString()
 
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
-        if (json.optInt("v", -1) != VERSION) return false
+        val version = json.optInt("v", -1)
+        if (version !in 1..VERSION) return false
 
         val restoredPlayerCell = json.optInt("playerCell", -1)
         val restoredEnemyCell = json.optInt("enemyCell", -1)
@@ -331,6 +353,7 @@ class NeonTacticsGame : ArcadeGame {
         val restoredWon = json.optBoolean("won", false)
         val restoredIntent = json.optString("intent")
         val restoredFeedback = json.optString("feedback")
+        val restoredData = if (version >= 2) json.optBoolean("dataRecovered", false) else false
         val expectedIntent = when {
             restoredEnemyHp <= 0 -> EnemyIntent.DISABLED.name
             areAdjacent(restoredPlayerCell, restoredEnemyCell) -> EnemyIntent.STRIKE.name
@@ -341,7 +364,7 @@ class NeonTacticsGame : ArcadeGame {
             restoredEnemyCell !in 0 until CELL_COUNT ||
             restoredPlayerCell == OBSTACLE_CELL ||
             restoredEnemyCell == OBSTACLE_CELL ||
-            restoredPlayerCell == restoredEnemyCell ||
+            restoredPlayerCell == restoredEnemyCell && restoredEnemyHp > 0 ||
             restoredPlayerHp !in 0..MAX_PLAYER_HP ||
             restoredEnemyHp !in 0..MAX_ENEMY_HP ||
             restoredTurn !in 0..MAX_COUNTER ||
@@ -358,18 +381,29 @@ class NeonTacticsGame : ArcadeGame {
             !restoredOver && restoredPlayerCell == OBJECTIVE_CELL
         ) return false
 
+        // V1 rewarded unlimited movement/defending. Retain the encounter, but rebuild
+        // its record from finite accomplishments rather than importing farmed points.
+        val earnedScore = (MAX_ENEMY_HP - restoredEnemyHp) * 15 +
+            (if (restoredData) 20 else 0) +
+            (if (restoredWon) extractionReward(restoredPlayerHp, restoredTurn) else 0)
+        if (version >= 2 && (restoredScore != earnedScore || restoredBestScore > 107)) return false
+
         playerCell = restoredPlayerCell
         enemyCell = restoredEnemyCell
         playerHp = restoredPlayerHp
         enemyHp = restoredEnemyHp
         turn = restoredTurn
-        score = restoredScore
+        score = earnedScore
         wins = restoredWins
         losses = restoredLosses
-        bestScore = restoredBestScore
+        bestScore = if (version == 1) earnedScore else restoredBestScore
         over = restoredOver
         won = restoredWon
+        dataRecovered = restoredData
         feedback = restoredFeedback
         true
     }.getOrDefault(false)
+
+    private fun extractionReward(hp: Int, turns: Int): Int =
+        25 + hp * 2 + (10 - turns).coerceAtLeast(0) * 2
 }
