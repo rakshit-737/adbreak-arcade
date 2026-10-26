@@ -18,11 +18,13 @@ data class GameStats(
         fun decode(encoded: String?): GameStats = runCatching {
             if (encoded.isNullOrBlank()) return GameStats()
             val json = JSONObject(encoded)
-            GameStats(
-                plays = json.optInt("plays", 0).coerceAtLeast(0),
-                actions = json.optInt("actions", 0).coerceAtLeast(0),
-                roundsCompleted = json.optInt("roundsCompleted", 0).coerceAtLeast(0),
-            )
+            if (json.optInt("v", -1) != 1) return GameStats()
+            val plays = json.optInt("plays", -1)
+            val actions = json.optInt("actions", -1)
+            val roundsCompleted = json.optInt("roundsCompleted", -1)
+            if (plays !in 0..1_000_000_000 || actions !in 0..1_000_000_000 ||
+                roundsCompleted !in 0..actions) return GameStats()
+            GameStats(plays, actions, roundsCompleted)
         }.getOrDefault(GameStats())
     }
 }

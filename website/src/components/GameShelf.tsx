@@ -39,7 +39,7 @@ export function GameShelf() {
           <button type="button" onClick={() => { setQuery(''); setCategory('All') }}>Clear filters</button>
         </div>
       )}
-      <p className="shelf-note"><span className="mono-label">INVENTORY</span> The shelf reflects the 17 factories registered in <code>GameRegistry</code>.</p>
+      <p className="shelf-note"><span className="mono-label">INVENTORY</span> The shelf reflects the 25 factories registered in <code>GameRegistry</code>.</p>
     </div>
   )
 }

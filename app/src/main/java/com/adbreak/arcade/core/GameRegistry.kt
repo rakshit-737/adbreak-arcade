@@ -19,6 +19,14 @@ object GameRegistry {
         "guess_the_pattern" to { GuessThePatternGame() },
         "anagram_challenge" to { AnagramChallengeGame() },
         "lights_out_mini" to { LightsOutMiniGame() },
+        "cyber_heist" to { CyberHeistGame() },
+        "pocket_dungeon" to { PocketDungeonGame() },
+        "neon_tactics" to { NeonTacticsGame() },
+        "cipher_vault" to { CipherVaultGame() },
+        "prism_protocol" to { PrismProtocolGame() },
+        "starship_survival" to { StarshipSurvivalGame() },
+        "micro_tower_command" to { MicroTowerCommandGame() },
+        "pulse_reactor" to { PulseReactorGame() },
     )
 
     /** Fresh instances prevent a library preview from mutating a running game. */

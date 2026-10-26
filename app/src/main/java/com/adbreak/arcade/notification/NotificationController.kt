@@ -21,6 +21,7 @@ import com.adbreak.arcade.data.ArcadeStore
 class NotificationController(private val context: Context) {
     private val appContext = context.applicationContext
     private val store = ArcadeStore(appContext)
+    private val actionLock = Any()
 
     companion object {
         const val CHANNEL_ID = "arcade_controls"
@@ -82,7 +83,7 @@ class NotificationController(private val context: Context) {
         return store.active
     }
 
-    fun stop() {
+    fun stop() = synchronized(actionLock) {
         store.active = false
         store.paused = false
         store.sessionInteracted = false
@@ -91,39 +92,41 @@ class NotificationController(private val context: Context) {
         NotificationManagerCompat.from(appContext).cancel(NOTIFICATION_ID)
     }
 
-    fun handle(actionName: String?) = handle(actionName, null, null)
+    fun handle(actionName: String?) = handle(actionName, null, null, null)
 
     fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?) {
         handle(actionName, actionGameId, actionSessionId, null)
     }
 
-    fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?, actionRevision: Long?) {
-        val hasEnvelope = actionGameId != null || actionSessionId != null || actionRevision != null
-        if (hasEnvelope && (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || actionRevision != null && actionRevision != store.renderRevision)) return
+    fun handle(actionName: String?, actionGameId: String?, actionSessionId: Long?, actionRevision: Long?) = synchronized(actionLock) {
+        if (actionName.isNullOrBlank() || actionName == ACTION_NO_OP) return@synchronized
+        if (actionGameId == null || actionSessionId == null || actionRevision == null) return@synchronized
+        if (actionGameId != store.sessionGameId || actionSessionId != store.sessionId || actionRevision != store.renderRevision) return@synchronized
         if (actionName == ACTION_STOP) {
             stop()
-            return
+            return@synchronized
         }
-        if (actionName.isNullOrBlank() || actionName == ACTION_NO_OP || !store.active) return
-        val action = runCatching { GameAction.valueOf(actionName.orEmpty()) }.getOrNull() ?: return
-        if (action == GameAction.PAUSE) { store.paused = true; renderAndNotify(); return }
-        if (action == GameAction.RESUME) { store.paused = false; renderAndNotify(); return }
-        if (store.paused && action != GameAction.RESET) return
+        if (!store.active) return@synchronized
+        val action = runCatching { GameAction.valueOf(actionName) }.getOrNull() ?: return@synchronized
+        val token = "${store.sessionId}:${store.renderRevision}:${store.sessionGameId}"
+        if (action == GameAction.PAUSE) {
+            if (!store.paused && store.saveSessionAction(true, token)) renderAndNotify()
+            return@synchronized
+        }
+        if (action == GameAction.RESUME) {
+            if (store.paused && store.saveSessionAction(false, token)) renderAndNotify()
+            return@synchronized
+        }
+        if (store.paused && action != GameAction.RESET) return@synchronized
         val game = store.loadGame(store.sessionGameId)
-        if (game.apply(action)) {
-            if (action == GameAction.RESET || action == GameAction.NEW_GAME) store.paused = false
-            store.saveGame(game)
-            if (action == GameAction.RESET || action == GameAction.NEW_GAME) {
-                store.sessionInteracted = false
-            } else {
-                val roundStarted = !store.sessionInteracted
-                store.recordGameAction(game.id, game.render().isTerminal, roundStarted)
-                store.sessionInteracted = true
-            }
+        if (!game.apply(action)) return@synchronized
+        val terminal = game.render().isTerminal
+        val saved = if (action == GameAction.RESET || action == GameAction.NEW_GAME) {
+            store.saveRoundReset(game, token)
         } else {
-            return
+            store.saveAcceptedAction(game, terminal, !store.sessionInteracted, token)
         }
-        renderAndNotify()
+        if (saved) renderAndNotify()
     }
 
     @android.annotation.SuppressLint("MissingPermission")
@@ -135,7 +138,7 @@ class NotificationController(private val context: Context) {
         }
         val game = store.loadGame(store.sessionGameId)
         val state = game.render()
-        store.renderRevision += 1L
+        store.nextRenderRevision()
         val gameOver = !store.paused && isGameOver(state)
         val effectiveState = when {
             store.paused -> state.copy(
@@ -150,7 +153,7 @@ class NotificationController(private val context: Context) {
         }
         val status = when {
             store.paused -> appContext.getString(R.string.notification_status_paused)
-            gameOver -> appContext.getString(R.string.notification_status_game_over)
+            gameOver -> "${appContext.getString(R.string.notification_status_game_over)} · ${state.feedback}".trimEnd(' ', '·')
             state.feedback.equals("Ready", ignoreCase = true) -> appContext.getString(R.string.notification_status_ready)
             state.feedback.isNotBlank() -> state.feedback
             else -> appContext.getString(R.string.notification_status_playing)
@@ -162,9 +165,15 @@ class NotificationController(private val context: Context) {
             else -> appContext.getString(R.string.notification_hint_playing)
         }
         val expanded = buildExpandedViews(effectiveState, status)
+        val compactStatus = when {
+            store.paused -> appContext.getString(R.string.notification_status_paused)
+            gameOver -> appContext.getString(R.string.notification_status_game_over)
+            state.feedback.equals("Ready", ignoreCase = true) -> appContext.getString(R.string.notification_status_ready)
+            else -> appContext.getString(R.string.notification_status_playing)
+        }
         val compact = RemoteViews(appContext.packageName, R.layout.notification_game_compact).apply {
             setTextViewText(R.id.notificationCompactTitle, effectiveState.title)
-            setTextViewText(R.id.notificationCompactStatus, status)
+            setTextViewText(R.id.notificationCompactStatus, compactStatus)
             setTextViewText(R.id.notificationCompactScore, effectiveState.scoreLine)
             setTextViewText(R.id.notificationCompactHint, compactHint)
             setViewVisibility(R.id.notificationCompactHint, if (compactHint.isBlank()) View.GONE else View.VISIBLE)
@@ -202,7 +211,7 @@ class NotificationController(private val context: Context) {
         setTextViewText(R.id.notificationGameStatus, status)
         setTextViewText(R.id.notificationGameSubtitle, state.subtitle)
         setTextViewText(R.id.notificationGameScore, state.scoreLine)
-        setViewVisibility(R.id.notificationGameSubtitle, if (state.cellButtons.isNotEmpty()) View.GONE else View.VISIBLE)
+        setViewVisibility(R.id.notificationGameSubtitle, if (state.subtitle.isBlank()) View.GONE else View.VISIBLE)
 
         val topIds = intArrayOf(R.id.notificationButton1, R.id.notificationButton2, R.id.notificationButton3, R.id.notificationButton4)
         topIds.forEachIndexed { index, id ->

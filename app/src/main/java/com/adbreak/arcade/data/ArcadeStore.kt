@@ -9,6 +9,7 @@ import org.json.JSONObject
 class ArcadeStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("arcade_state", Context.MODE_PRIVATE)
     private val profileKey = "arcade_profile_v1"
+    private val lastActionKey = "last_consumed_action"
     var selectedGameId: String
         get() = prefs.getString("selected_game", "tap_counter")?.takeIf(GameRegistry::isKnown) ?: "tap_counter"
         set(value) { if (GameRegistry.isKnown(value)) prefs.edit().putString("selected_game", value).apply() }
@@ -56,6 +57,58 @@ class ArcadeStore(context: Context) {
     }
 
     fun saveGame(game: ArcadeGame) = prefs.edit().putString("state_${game.id}", game.encode()).commit()
+
+    /** Atomically persists an accepted gameplay move and its progression side effects. */
+    @Synchronized
+    fun saveAcceptedAction(game: ArcadeGame, terminal: Boolean, roundStarted: Boolean, actionToken: String): Boolean {
+        if (prefs.getString(lastActionKey, null) == actionToken) return false
+        val current = statsFor(game.id)
+        val next = current.copy(
+            plays = current.plays + if (roundStarted) 1 else 0,
+            actions = current.actions + 1,
+            roundsCompleted = current.roundsCompleted + if (terminal) 1 else 0,
+        )
+        val profile = readProfile()
+        profile.totalXp += (if (current.actions == 0) 10 else 0) + if (terminal) 10 else 0
+        profile.recent.remove(game.id)
+        profile.recent.add(0, game.id)
+        while (profile.recent.size > 5) profile.recent.removeAt(profile.recent.lastIndex)
+        return prefs.edit()
+            .putString("state_${game.id}", game.encode())
+            .putString("stats_${game.id}", next.encode())
+            .putString(profileKey, profile.encode())
+            .putString(lastActionKey, actionToken)
+            .putBoolean("session_interacted", true)
+            .commit()
+    }
+
+    /** Persists a reset/new-round action without counting it as gameplay. */
+    @Synchronized
+    fun saveRoundReset(game: ArcadeGame, actionToken: String): Boolean {
+        if (prefs.getString(lastActionKey, null) == actionToken) return false
+        return prefs.edit()
+            .putString("state_${game.id}", game.encode())
+            .putBoolean("paused", false)
+            .putBoolean("session_interacted", false)
+            .putString(lastActionKey, actionToken)
+            .commit()
+    }
+
+    @Synchronized
+    fun saveSessionAction(paused: Boolean, actionToken: String): Boolean {
+        if (prefs.getString(lastActionKey, null) == actionToken) return false
+        return prefs.edit()
+            .putBoolean("paused", paused)
+            .putString(lastActionKey, actionToken)
+            .commit()
+    }
+
+    @Synchronized
+    fun nextRenderRevision(): Long {
+        val next = prefs.getLong("render_revision", 0L) + 1L
+        prefs.edit().putLong("render_revision", next).commit()
+        return next
+    }
 
     fun resetGame(id: String) {
         if (GameRegistry.isKnown(id)) prefs.edit().remove("state_$id").apply()

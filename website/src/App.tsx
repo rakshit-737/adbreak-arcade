@@ -63,7 +63,7 @@ export default function App() {
         <section id="top" className="hero-section site-container">
           <div className="hero-grid">
             <Reveal className="hero-copy">
-              <div className="signal-line"><span className="signal-line__mark" /> NATIVE ANDROID · 17 OFFLINE GAMES</div>
+              <div className="signal-line"><span className="signal-line__mark" /> NATIVE ANDROID · 25 OFFLINE GAMES</div>
               <h1>Make the<br /><span>waiting part</span> yours.</h1>
               <p className="hero-lede">A small arcade shelf for the moments between everything else. Choose a game, expand the notification, and play with ordinary Android controls while another app stays in front.</p>
               <div className="hero-actions">
@@ -75,7 +75,7 @@ export default function App() {
                 <span><Icon name="check" /> Local state</span>
                 <span><Icon name="check" /> No network permission</span>
               </div>
-              <p className="hero-release"><span className="release-dot" /> v1.2.0 debug APK is available for testing <a href={releaseUrl}>View release</a></p>
+              <p className="hero-release"><span className="release-dot" /> Published v1.2.0 debug APK remains available for testing <a href={releaseUrl}>View release</a></p>
             </Reveal>
             <Reveal className="hero-preview" delay={80}>
               <NotificationDemo />
@@ -101,7 +101,7 @@ export default function App() {
             <p>AdBreak Arcade keeps the interaction small on purpose. Android owns the notification shell; the app supplies a compact game state and clear next actions.</p>
           </Reveal>
           <div className="how-flow">
-            <FlowStep number="01" title="Choose" detail="Pick one of the 17 games from Library." icon="grid" />
+            <FlowStep number="01" title="Choose" detail="Pick one of the 25 games from Library." icon="grid" />
             <div className="flow-connector" aria-hidden="true"><span /></div>
             <FlowStep number="02" title="Expand" detail="Start the notification, then open it from the shade." icon="up" />
             <div className="flow-connector" aria-hidden="true"><span /></div>
@@ -153,7 +153,7 @@ export default function App() {
 
         <section id="games" className="section section--games site-container">
           <Reveal className="section-heading section-heading--shelf">
-            <div><span className="section-kicker">The shelf</span><h2>Seventeen ways<br /><em>to spend a minute.</em></h2></div>
+            <div><span className="section-kicker">The shelf</span><h2>Twenty-five ways<br /><em>to spend a minute.</em></h2></div>
             <div className="shelf-intro"><strong>17</strong><p>registered offline games, each shaped around notification-sized controls. Some use fixed built-in puzzle sets; all stay small enough to read at a glance.</p></div>
           </Reveal>
           <Reveal delay={80}><GameShelf /></Reveal>

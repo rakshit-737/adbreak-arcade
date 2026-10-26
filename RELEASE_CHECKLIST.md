@@ -1,8 +1,10 @@
-# AdBreak Arcade 1.3.0 release checklist
+# AdBreak Arcade 1.4.0 release checklist
 
 ## Automated checks
 
-- [x] Seven target games are registered and have versioned state restoration.
+- [x] Twenty-five games are registered and have versioned state restoration,
+  including Cyber Heist, Pocket Dungeon, Neon Tactics, Cipher Vault, Prism
+  Protocol, Starship Survival, Micro Tower Command, and Pulse Reactor.
 - [x] Notification channel, stable notification ID, immutable action intents,
   session IDs, and render revisions are implemented.
 - [x] Local game state, scores, recent games, and onboarding use

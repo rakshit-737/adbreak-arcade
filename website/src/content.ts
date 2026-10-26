@@ -27,10 +27,18 @@ export const games: Game[] = [
   { id: 'guess_the_pattern', title: 'Guess the Pattern', category: 'Logic', description: 'Spot the rule in a short sequence and choose what comes next.', signal: 'FOUR CHOICES', icon: 'pattern' },
   { id: 'anagram_challenge', title: 'Anagram Challenge', category: 'Words & knowledge', description: 'Build a hidden word one letter at a time.', signal: 'LETTER BY LETTER', icon: 'letters' },
   { id: 'lights_out_mini', title: 'Lights Out Mini', category: 'Board', description: 'Toggle a compact board until every light is off.', signal: '3 × 3 GRID', icon: 'sun' },
+  { id: 'cyber_heist', title: 'Cyber Heist', category: 'Logic', description: 'Route a fictional breach through three escalating missions.', signal: 'SECURITY METER', icon: 'lock' },
+  { id: 'pocket_dungeon', title: 'Pocket Dungeon', category: 'Action', description: 'Fight, scout, heal, and loot a five-room turn-based run.', signal: 'FIVE ROOMS', icon: 'stones' },
+  { id: 'neon_tactics', title: 'Neon Tactics', category: 'Board', description: 'Read the drone intent and reach the core on a compact grid.', signal: 'TACTICAL GRID', icon: 'board' },
+  { id: 'cipher_vault', title: 'Cipher Vault', category: 'Logic', description: 'Stage digit guesses and use exact or misplaced clues to crack the vault.', signal: 'CODE BREAK', icon: 'lock' },
+  { id: 'prism_protocol', title: 'Prism Protocol', category: 'Board', description: 'Rotate mirrors to route a deterministic beam to its target.', signal: 'BEAM ROUTING', icon: 'chart' },
+  { id: 'starship_survival', title: 'Starship Survival', category: 'Action', description: 'Manage hull, shields, fuel, energy, and supplies across six hazards.', signal: 'RESOURCE RUN', icon: 'up' },
+  { id: 'micro_tower_command', title: 'Micro Tower Command', category: 'Board', description: 'Place dart and frost towers against deterministic enemy waves.', signal: 'THREE WAVES', icon: 'columns' },
+  { id: 'pulse_reactor', title: 'Pulse Reactor', category: 'Logic', description: 'Memorize escalating pulse patterns before three mistakes overload the reactor.', signal: 'PATTERN MEMORY', icon: 'spark' },
 ]
 
 export const stats = [
-  { value: '17', label: 'registered games' },
+  { value: '25', label: 'registered games' },
   { value: 'LOCAL', label: 'scores & state' },
   { value: '0', label: 'network permissions' },
 ]
@@ -38,7 +46,7 @@ export const stats = [
 export const faq = [
   {
     question: 'What is AdBreak Arcade?',
-    answer: 'A native Android app with 17 short offline mini-games that can be played from an expanded notification. Choose a game, start the notification, expand it, and play with ordinary notification controls.',
+    answer: 'A native Android app with 25 short offline mini-games that can be played from an expanded notification. Choose a game, start the notification, expand it, and play with ordinary notification controls.',
   },
   {
     question: 'Does it detect or skip advertisements?',
@@ -66,13 +74,13 @@ export const faq = [
   },
   {
     question: 'Is the APK ready for Google Play?',
-    answer: 'Not yet. The current v1.2.0 debug APK is available for testing. Production signing is not configured in the repository, and the release build is not a distributable production artifact.',
+    answer: 'Not yet. The current v1.4.0 debug APK is available for testing. Production signing is not configured in the repository, and the release build is not a distributable production artifact.',
   },
 ]
 
 export const architectureSteps = [
   { label: 'Selection UI', detail: 'MainActivity', tone: 'violet' },
-  { label: 'Game Registry', detail: '17 fresh ArcadeGame instances', tone: 'blue' },
+  { label: 'Game Registry', detail: '25 fresh ArcadeGame instances', tone: 'blue' },
   { label: 'State & Actions', detail: 'versioned JSON + SharedPreferences', tone: 'lilac' },
   { label: 'Notification Controller', detail: 'RemoteViews + immutable PendingIntent', tone: 'violet' },
   { label: 'Android System UI', detail: 'compact + expanded notification', tone: 'blue' },

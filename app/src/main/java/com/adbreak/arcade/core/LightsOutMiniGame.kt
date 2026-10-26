@@ -55,10 +55,13 @@ class LightsOutMiniGame : ArcadeGame {
         title = title,
         subtitle = if (over) "Solved — reset for another run" else "Turn every light off",
         scoreLine = "Moves $moves  ·  Wins $wins  ·  Best ${if (bestMoves == 0) "—" else bestMoves}",
-        cellButtons = board.mapIndexed { index, value -> "${index + 1}:${if (value == '1') "ON" else "·"}" },
-        cellActions = (0..8).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
+        buttons = if (over) listOf("NEW ROUND") else emptyList(),
+        buttonActions = if (over) listOf(GameAction.NEW_GAME) else emptyList(),
+        cellButtons = if (over) emptyList() else board.mapIndexed { index, value -> "${index + 1}:${if (value == '1') "ON" else "OFF"}" },
+        cellActions = if (over) emptyList() else (0..8).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
         feedback = feedback,
-        isTerminal = over
+        isTerminal = over,
+        phase = if (over) GamePhase.WON else GamePhase.PLAYING,
     )
 
     override fun encode() = JSONObject().apply {

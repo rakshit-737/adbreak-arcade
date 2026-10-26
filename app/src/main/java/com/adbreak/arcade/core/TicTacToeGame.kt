@@ -124,8 +124,8 @@ class TicTacToeGame : ArcadeGame {
         "${board.joinToString(" ") { if (it == ' ') "·" else it.toString() }}  ·  W $wins  L $losses  D $draws  ·  Score $score",
         buttons = if (over) listOf("NEW GAME") else emptyList(),
         buttonActions = if (over) listOf(GameAction.NEW_GAME) else emptyList(),
-        cellButtons = board.mapIndexed { i, mark -> "${i + 1}:${if (mark == ' ') "·" else mark}" },
-        cellActions = (0..8).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
+        cellButtons = if (over) emptyList() else board.mapIndexed { i, mark -> "${i + 1}:${if (mark == ' ') "·" else mark}" },
+        cellActions = if (over) emptyList() else (0..8).map { GameAction.values()[GameAction.CELL_1.ordinal + it] },
         feedback = feedback,
         isTerminal = over,
         phase = when {

@@ -73,7 +73,7 @@ class NotificationSmokeTest {
         val store = ArcadeStore(context)
         controller.stop()
 
-        controller.handle(GameAction.PAUSE.name)
+        controller.handle(GameAction.PAUSE.name, store.sessionGameId, store.sessionId, store.renderRevision)
 
         assertFalse(store.active)
         assertFalse(store.paused)
@@ -86,13 +86,24 @@ class NotificationSmokeTest {
         val store = ArcadeStore(context)
 
         assertTrue(controller.show())
-        controller.handle(GameAction.PAUSE.name)
+        controller.handle(GameAction.PAUSE.name, store.sessionGameId, store.sessionId, store.renderRevision)
         assertTrue(store.paused)
 
-        controller.handle(GameAction.RESET.name)
+        controller.handle(GameAction.RESET.name, store.sessionGameId, store.sessionId, store.renderRevision)
 
         assertTrue(store.active)
         assertFalse(store.paused)
+    }
+
+    @Test
+    fun gameplayWithoutACompleteEnvelopeIsRejected() {
+        val controller = NotificationController(context)
+        assumeTrue("Notification permission or channel is unavailable", controller.canPost())
+        val store = ArcadeStore(context)
+        assertTrue(controller.show())
+        val before = store.loadGame(store.sessionGameId).encode()
+        controller.handle(GameAction.PRIMARY.name)
+        assertEquals(before, store.loadGame(store.sessionGameId).encode())
     }
 
     @Test

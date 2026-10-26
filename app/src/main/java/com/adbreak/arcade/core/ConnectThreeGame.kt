@@ -81,8 +81,8 @@ class ConnectThreeGame : ArcadeGame {
             title = title,
             subtitle = feedback,
             scoreLine = "Moves $moves  ·  $boardText",
-            cellButtons = listOf("COL 1", "COL 2", "COL 3"),
-            cellActions = listOf(GameAction.CELL_1, GameAction.CELL_2, GameAction.CELL_3),
+            cellButtons = if (over) emptyList() else listOf("COL 1", "COL 2", "COL 3"),
+            cellActions = if (over) emptyList() else listOf(GameAction.CELL_1, GameAction.CELL_2, GameAction.CELL_3),
             feedback = feedback,
             isTerminal = over,
             phase = when {

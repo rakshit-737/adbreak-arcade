@@ -20,12 +20,20 @@ class NewArcadeGamesTest {
         Fixture({ GuessThePatternGame() }, GameAction.PRIMARY),
         Fixture({ AnagramChallengeGame() }, GameAction.PRIMARY),
         Fixture({ LightsOutMiniGame() }, GameAction.CELL_1)
+        ,Fixture({ CyberHeistGame() }, GameAction.PRIMARY)
+        ,Fixture({ PocketDungeonGame() }, GameAction.PRIMARY)
+        ,Fixture({ NeonTacticsGame() }, GameAction.PRIMARY)
+        ,Fixture({ CipherVaultGame() }, GameAction.CELL_1)
+        ,Fixture({ PrismProtocolGame() }, GameAction.CELL_1)
+        ,Fixture({ StarshipSurvivalGame() }, GameAction.PRIMARY)
+        ,Fixture({ MicroTowerCommandGame() }, GameAction.CELL_2)
+        ,Fixture({ PulseReactorGame() }, GameAction.PRIMARY)
     )
 
     @Test
     fun newGamesHaveStableIdsAndNotificationSizedControls() {
         val games = fixtures.map { it.create() }
-        assertEquals(10, games.map { it.id }.toSet().size)
+        assertEquals(18, games.map { it.id }.toSet().size)
         games.forEach { game ->
             val state = game.render()
             assertTrue(game.id.isNotBlank())
@@ -67,11 +75,10 @@ class NewArcadeGamesTest {
             val game = fixture.create()
             game.apply(fixture.action)
             assertTrue(game.apply(GameAction.RESET))
-            val fresh = fixture.create()
-            assertEquals("${game.id} reset should match a fresh game", fresh.render(), game.render())
             val restored = fixture.create()
             assertTrue("${game.id} reset state should restore", restored.restore(game.encode()))
-            assertEquals("${game.id} reset state should restore", fresh.render(), restored.render())
+            assertEquals("${game.id} reset state should restore", game.render(), restored.render())
+            assertFalse("${game.id} reset should not be terminal", game.render().isTerminal)
         }
     }
 

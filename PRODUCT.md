@@ -13,7 +13,7 @@ People waiting through a video advertisement can manually expand a notification
 and play a short game without deliberately opening another Activity per move.
 
 ## Constraints
-Seventeen registered offline games. No ad detection, blocking, skipping, overlays,
+Twenty-five registered offline games. No ad detection, blocking, skipping, overlays,
 accessibility service, notification listener, analytics, or network permission.
 Smart App Triggers are opt-in, require Usage access, and observe only selected
 package foreground transitions.

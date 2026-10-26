@@ -43,7 +43,17 @@ object GamePresentationCatalog {
         "guess_the_pattern" to GamePresentation(logic, "⌁"),
         "anagram_challenge" to GamePresentation(words, "ABC"),
         "lights_out_mini" to GamePresentation(board, "◌"),
+        "cyber_heist" to GamePresentation(code, "⌁"),
+        "pocket_dungeon" to GamePresentation(GameFamily.FOCUS, "♜"),
+        "neon_tactics" to GamePresentation(board, "✣"),
+        "cipher_vault" to GamePresentation(code, "◇"),
+        "prism_protocol" to GamePresentation(GameFamily.FOCUS, "◈"),
+        "starship_survival" to GamePresentation(GameFamily.PULSE, "✦"),
+        "micro_tower_command" to GamePresentation(board, "⌂"),
+        "pulse_reactor" to GamePresentation(pulse, "◉"),
     )
 
-    fun forGame(id: String): GamePresentation = presentations[id] ?: GamePresentation(logic, "•")
+    fun forGame(id: String): GamePresentation = presentations[id] ?: error("Missing presentation for game id: $id")
+
+    fun has(id: String): Boolean = id in presentations
 }
