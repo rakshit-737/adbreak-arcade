@@ -65,13 +65,15 @@ class TapCounterGame : ArcadeGame {
 
     override fun render() = GameViewState(
         title = title,
-        subtitle = if (taps >= TARGET) "Target cleared — replay to beat your best" else "Reach $TARGET taps · every fifth tap raises the combo",
-        scoreLine = "Score $score  ·  Progress $taps/$TARGET  ·  Streak $streak  ·  Best $best",
+        subtitle = if (taps >= TARGET) "Sprint complete — replay when ready" else "Reach $TARGET taps · combo rises after every 5 taps",
+        scoreLine = "Score $score  ·  Taps $taps/$TARGET",
         buttons = if (taps >= TARGET) listOf("NEW SPRINT") else listOf("TAP"),
         buttonActions = if (taps >= TARGET) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY),
         feedback = feedback,
         isTerminal = taps >= TARGET,
         phase = if (taps >= TARGET) GamePhase.WON else GamePhase.PLAYING,
+        progress = GameProgress(taps, TARGET, "Taps"),
+        record = if (taps >= TARGET && streak == TARGET) GameRecord(score, "Sprint points") else null,
     )
 
     override fun encode() = JSONObject().apply {
@@ -91,7 +93,8 @@ class TapCounterGame : ArcadeGame {
         if (version !in 1..3) return false
         val restoredScore = json.optInt("score", -1)
         val restoredBest = json.optInt("best", -1)
-        val restoredTaps = if (version >= 3) json.optInt("taps", -1) else restoredScore
+        // The original unlimited counter could legitimately exceed the new target.
+        val restoredTaps = if (version >= 3) json.optInt("taps", -1) else restoredScore.coerceAtMost(TARGET)
         val restoredStreak = if (version >= 3) json.optInt("streak", 0) else 0
         val restoredBestStreak = if (version >= 3) json.optInt("bestStreak", restoredStreak) else restoredBest
         val restoredRounds = if (version >= 3) json.optInt("roundsCompleted", 0) else 0

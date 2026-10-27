@@ -48,6 +48,24 @@ Notification actions carry a session and render revision envelope. This keeps a
 button tied to the exact rendered state instead of only the current game, while
 the notification itself remains quiet, compact, and within RemoteViews limits.
 
+### Gameplay polish
+
+Compact notifications use two text rows: the game/outcome and the current
+objective or result. Expanded notifications prioritize the actual problem,
+latest consequence and scarce resources. Long choices use two columns. A
+determinate bar is permitted only for a labeled, discrete game objective.
+
+Board auxiliary actions occupy native notification action slots. Menu/details
+keeps lifecycle controls and full state available without opening the Activity.
+At large font scale (1.3+), nine-cell controls are paged by row through that menu.
+No hidden game turn, score or resource cost is attached to presentation navigation.
+Disabled controls retain explanatory accessibility labels. Success/error color
+always accompanies words, and notification animation never uses update loops.
+
+Personal records are separate from the active run and survive replay. The lobby
+shows an actual selected-run preview, while Scores distinguishes run summaries
+from records. See `reports/notification-polish-qa.md` for evidence and device gaps.
+
 ## Website visual system
 
 The project website uses the same restrained violet identity as the Android app,

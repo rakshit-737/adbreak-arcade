@@ -7,7 +7,7 @@ import java.util.Random
 class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "memory_challenge"
     override val title = "Memory Challenge"
-    override val description = "Memorize a growing sequence, replay it cleanly, and keep three lives."
+    override val description = "Clear five growing patterns, with three tries per pattern."
 
     private var sequence = listOf(1, 2)
     private var input = mutableListOf<Int>()
@@ -25,12 +25,14 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
     private var roundEnded = false
     private var message = "Pattern: 1 2"
     private var feedback = "Memorize the pattern"
+    private var targetLevel = 5
+    private var recordEligible = true
 
     private val accuracyPercent: Int
         get() = if (totalInputs == 0) 0 else correctInputs * 100 / totalInputs
 
     override fun reset() {
-        sequence = listOf(1, 2)
+        sequence = List(2) { random.nextInt(4) + 1 }
         input.clear()
         level = 1
         score = 0
@@ -40,7 +42,9 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
         totalInputs = 0
         mastered = false
         roundEnded = false
-        message = "Pattern: 1 2"
+        targetLevel = 5
+        recordEligible = true
+        message = "Pattern: ${sequence.joinToString(" ")}"
         feedback = "Memorize the pattern"
     }
 
@@ -62,6 +66,7 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
         totalInputs++
         input += value
         if (input.last() != sequence[input.lastIndex]) {
+            val expected = sequence[input.lastIndex]
             mistakes++
             lives--
             input.clear()
@@ -70,17 +75,17 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
                 message = "Pattern lost · level $level"
                 feedback = "Out of lives — start a new memory run"
             } else {
-                message = "Repeat the pattern"
-                feedback = "Miss — $lives tries left"
+                message = "Pattern: ${sequence.joinToString(" ")}"
+                feedback = "Miss — needed $expected · $lives tries left; study again"
             }
         } else {
             correctInputs++
             if (input.size == sequence.size) {
                 score += sequence.size * 10
-                if (level >= 100) {
+                if (level >= targetLevel) {
                     mastered = true
                     roundEnded = true
-                    feedback = "Memory mastered — new run ready"
+                    feedback = "Run clear — $mistakes mistakes · replay ready"
                 } else {
                     level++
                     best = maxOf(best, level)
@@ -101,7 +106,7 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
     override fun render() = GameViewState(
         title = title,
         subtitle = message,
-        scoreLine = "Score $score  ·  Level $level  ·  Best $best  ·  Lives $lives  ·  Accuracy $accuracyPercent%",
+        scoreLine = "Pattern $level/$targetLevel  ·  Input ${input.size}/${sequence.size}  ·  Tries $lives/3",
         buttons = if (mastered || roundEnded) listOf("NEW RUN") else listOf("1", "2", "3", "4"),
         buttonActions = if (mastered || roundEnded) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
         feedback = feedback,
@@ -111,10 +116,14 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
             roundEnded -> GamePhase.LOST
             else -> GamePhase.PLAYING
         },
+        progress = GameProgress(if (mastered) level else level - 1, targetLevel, "Patterns cleared"),
+        record = if (mastered && recordEligible) GameRecord(mistakes, "Mistakes in clear", higherIsBetter = false) else null,
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 3)
+        put("v", 4)
+        put("targetLevel", targetLevel)
+        put("recordEligible", recordEligible)
         put("sequence", JSONArray(sequence))
         put("input", JSONArray(input))
         put("level", level)
@@ -133,7 +142,7 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..3) return false
+        if (version !in 1..4) return false
 
         val restoredSequence = if (version == 1) {
             json.optString("sequence").split(",").map { it.toIntOrNull() ?: return false }
@@ -160,8 +169,11 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
         val restoredTotal = if (version >= 3) json.optInt("totalInputs", 0) else 0
         val restoredMessage = json.optString("message")
         val restoredFeedback = if (version == 1) "Memorize the pattern" else json.optString("feedback")
+        val restoredTarget = if (version >= 4) json.optInt("targetLevel", -1) else maxOf(5, restoredLevel)
+        val restoredEligible = version >= 4 && json.optBoolean("recordEligible", false)
 
-        if (restoredSequence.size != restoredLevel + 1 || restoredSequence.isEmpty() || restoredSequence.any { it !in 1..4 } ||
+        if (restoredTarget !in 5..100 || restoredLevel > restoredTarget || (restoredEligible && restoredTarget != 5) ||
+            restoredSequence.size != restoredLevel + 1 || restoredSequence.isEmpty() || restoredSequence.any { it !in 1..4 } ||
             restoredInput.any { it !in 1..4 } || restoredInput.size >= restoredSequence.size ||
             restoredInput.indices.any { restoredInput[it] != restoredSequence[it] } ||
             restoredLevel !in 1..100 || restoredBest !in restoredLevel..100 ||
@@ -170,6 +182,8 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
             restoredMessage.isBlank() || restoredFeedback.isBlank()) return false
 
         if (restoredMastered && !restoredEnded) return false
+        if (version >= 4 && ((restoredMastered && (restoredLevel != restoredTarget || restoredInput.isNotEmpty())) ||
+                (!restoredMastered && restoredEnded != (restoredLives == 0)))) return false
         sequence = restoredSequence
         input = restoredInput.toMutableList()
         level = restoredLevel
@@ -183,6 +197,8 @@ class MemoryChallengeGame(private val random: Random = Random()) : ArcadeGame {
         roundEnded = restoredEnded
         message = restoredMessage
         feedback = restoredFeedback
+        targetLevel = restoredTarget
+        recordEligible = restoredEligible
         true
     }.getOrDefault(false)
 }

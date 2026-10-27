@@ -6,7 +6,7 @@ import org.json.JSONObject
 class TicTacToeGame : ArcadeGame {
     override val id = "tic_tac_toe"
     override val title = "Tic-Tac-Toe"
-    override val description = "Read the board, block the threat, and outplay a perfect defensive AI."
+    override val description = "Block three in a row; a draw against perfect Arcade earns a point."
 
     private val board = Array(9) { ' ' }
     private var over = false
@@ -25,6 +25,7 @@ class TicTacToeGame : ArcadeGame {
     private var streak = 0
 
     override fun reset() {
+        if (!over && board.any { it != ' ' }) streak = 0
         java.util.Arrays.fill(board, ' ')
         over = false
         result = "Your turn"
@@ -53,9 +54,11 @@ class TicTacToeGame : ArcadeGame {
         }
         if (board.none { it == ' ' }) {
             draws++
-            streak = 0
+            streak++
+            bestStreak = maxOf(bestStreak, streak)
+            score++
             result = "Draw"
-            feedback = "A tight game — try a new board"
+            feedback = "Perfect defense — +1 point · replay ready"
             over = true
             return true
         }
@@ -66,16 +69,18 @@ class TicTacToeGame : ArcadeGame {
             losses++
             streak = 0
             result = "Arcade wins"
-            feedback = "Arcade found the line"
+            feedback = "Arcade completed three at cell ${ai + 1} — replay ready"
             over = true
         } else if (board.none { it == ' ' }) {
             draws++
-            streak = 0
+            streak++
+            bestStreak = maxOf(bestStreak, streak)
+            score++
             result = "Draw"
-            feedback = "A tight game — try a new board"
+            feedback = "Perfect defense — +1 point · replay ready"
             over = true
         } else {
-            feedback = "Arcade moved — your turn"
+            feedback = "Arcade played cell ${ai + 1} — your turn"
         }
         return true
     }
@@ -120,8 +125,8 @@ class TicTacToeGame : ArcadeGame {
 
     override fun render() = GameViewState(
         title,
-        if (over) result else "Your turn · X = you · O = Arcade",
-        "${board.joinToString(" ") { if (it == ' ') "·" else it.toString() }}  ·  W $wins  L $losses  D $draws  ·  Score $score",
+        if (over) result else "You: X · Block O's three; a draw earns 1",
+        "Score $score  ·  W $wins  L $losses  D $draws  ·  Unbeaten $streak",
         buttons = if (over) listOf("NEW GAME") else emptyList(),
         buttonActions = if (over) listOf(GameAction.NEW_GAME) else emptyList(),
         cellButtons = board.mapIndexed { i, mark -> "${i + 1}:${if (mark == ' ') "·" else mark}" },
@@ -133,11 +138,16 @@ class TicTacToeGame : ArcadeGame {
             result == "You win" -> GamePhase.WON
             result == "Arcade wins" -> GamePhase.LOST
             else -> GamePhase.DRAW
-        }
+        },
+        progress = GameProgress(board.count { it != ' ' }, 9, "Cells played"),
+        record = if (over && result != "Arcade wins" && streak > 0) GameRecord(streak, "Unbeaten boards") else null,
+        disabledActions = board.indices.filter { over || board[it] != ' ' }.associate {
+            GameAction.values()[GameAction.CELL_1.ordinal + it] to if (over) "Board complete — start a new game" else "Cell ${it + 1} is occupied by ${board[it]}"
+        },
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 2)
+        put("v", 3)
         put("board", JSONArray(board.map { it.toString() }))
         put("over", over)
         put("result", result)
@@ -153,7 +163,7 @@ class TicTacToeGame : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..2) return false
+        if (version !in 1..3) return false
         val values = json.getJSONArray("board")
         if (values.length() != 9) return false
         val restoredBoard = List(9) { values.optString(it).firstOrNull() ?: return false }
@@ -187,7 +197,7 @@ class TicTacToeGame : ArcadeGame {
         val restoredBestStreak = json.optInt("bestStreak", 0)
         val restoredStreak = json.optInt("streak", 0)
         if (restoredFeedback.isBlank() || restoredWins !in 0..1_000_000 || restoredLosses !in 0..1_000_000 ||
-            restoredDraws !in 0..1_000_000 || restoredScore !in 0..3_000_000 ||
+            restoredDraws !in 0..1_000_000 || restoredScore !in 0..4_000_000 ||
             restoredBestStreak !in 0..1_000_000 || restoredStreak !in 0..restoredBestStreak) return false
 
         for (i in 0..8) board[i] = restoredBoard[i]

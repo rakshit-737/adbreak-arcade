@@ -7,16 +7,18 @@ class OddOneOutGame : ArcadeGame {
     override val title = "Odd One Out"
     override val description = "Find the one item that does not belong with the other three."
 
-    private data class Puzzle(val choices: List<String>, val oddIndex: Int)
+    private data class Puzzle(val choices: List<String>, val oddIndex: Int, val rule: String)
 
     private val puzzles = listOf(
-        Puzzle(listOf("CAT", "DOG", "COW", "ROSE"), 3),
-        Puzzle(listOf("RED", "BLUE", "CIRCLE", "GREEN"), 2),
-        Puzzle(listOf("2", "4", "9", "6"), 2),
-        Puzzle(listOf("MONDAY", "MARCH", "FRIDAY", "TUESDAY"), 1),
-        Puzzle(listOf("▲", "7", "■", "●"), 1)
+        Puzzle(listOf("CAT", "DOG", "COW", "ROSE"), 3, "ROSE is a plant; the others are animals"),
+        Puzzle(listOf("RED", "BLUE", "CIRCLE", "GREEN"), 2, "CIRCLE is a shape; the others are colors"),
+        Puzzle(listOf("2", "4", "9", "6"), 2, "9 is odd; the others are even"),
+        Puzzle(listOf("MONDAY", "MARCH", "FRIDAY", "TUESDAY"), 1, "MARCH is a month; the others are weekdays"),
+        Puzzle(listOf("▲", "7", "■", "●"), 1, "7 is a number; the others are shapes")
     )
     private var puzzleIndex = 0
+    private var startIndex = 0
+    private var bounded = true
     private var attempts = 0
     private var score = 0
     private var streak = 0
@@ -24,7 +26,9 @@ class OddOneOutGame : ArcadeGame {
     private var feedback = "Find the odd item"
 
     override fun reset() {
-        puzzleIndex = 0
+        startIndex = (startIndex + 1) % puzzles.size
+        puzzleIndex = startIndex
+        bounded = true
         attempts = 0
         score = 0
         streak = 0
@@ -37,6 +41,7 @@ class OddOneOutGame : ArcadeGame {
             reset()
             return true
         }
+        if (isOver()) return false
         val choiceIndex = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -46,34 +51,42 @@ class OddOneOutGame : ArcadeGame {
         }
         val puzzle = puzzles[puzzleIndex]
         attempts++
-        if (choiceIndex == puzzle.oddIndex) {
+        if ((choiceIndex + startIndex) % 4 == puzzle.oddIndex) {
             score++
             streak++
             best = maxOf(best, streak)
-            feedback = "Correct — ${puzzle.choices[puzzle.oddIndex]} was odd"
+            feedback = "Correct — ${puzzle.rule}"
         } else {
             streak = 0
-            feedback = "Not quite — ${puzzle.choices[puzzle.oddIndex]} was odd"
+            feedback = "Not quite — ${puzzle.rule}"
         }
         puzzleIndex = (puzzleIndex + 1) % puzzles.size
         return true
     }
 
+    private fun isOver() = bounded && attempts >= puzzles.size
+
     override fun render(): GameViewState {
         val puzzle = puzzles[puzzleIndex]
         return GameViewState(
             title = title,
-            subtitle = "Which item is different?",
-            scoreLine = "Score $score  ·  Streak $streak  ·  Best $best",
-            buttons = puzzle.choices,
-            buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
-            feedback = feedback
+            subtitle = if (isOver()) "Deck complete · $score/${puzzles.size} correct" else "Which item does not fit the group?",
+            scoreLine = "Correct $score/$attempts  ·  Streak $streak",
+            buttons = if (isOver()) listOf("NEW DECK") else puzzle.choices.drop(startIndex % 4) + puzzle.choices.take(startIndex % 4),
+            buttonActions = if (isOver()) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+            feedback = feedback,
+            isTerminal = isOver(),
+            phase = if (!isOver()) GamePhase.PLAYING else if (score == puzzles.size) GamePhase.WON else GamePhase.DRAW,
+            progress = if (bounded) GameProgress(attempts, puzzles.size, "Items answered") else null,
+            record = if (isOver()) GameRecord(score, "Correct / ${puzzles.size}") else null
         )
     }
 
     override fun encode() = JSONObject().apply {
         put("v", 1)
         put("puzzleIndex", puzzleIndex)
+        put("startIndex", startIndex)
+        put("bounded", bounded)
         put("attempts", attempts)
         put("score", score)
         put("streak", streak)
@@ -90,13 +103,19 @@ class OddOneOutGame : ArcadeGame {
         val restoredStreak = json.optInt("streak", -1)
         val restoredBest = json.optInt("best", -1)
         val restoredFeedback = json.optString("feedback")
+        val restoredStart = json.optInt("startIndex", 0)
+        val restoredBounded = json.optBoolean("bounded", false)
         if (restoredPuzzleIndex !in puzzles.indices || restoredAttempts < 0 ||
-            restoredPuzzleIndex != restoredAttempts % puzzles.size ||
+            restoredStart !in puzzles.indices ||
+            restoredPuzzleIndex != (restoredStart + restoredAttempts % puzzles.size) % puzzles.size ||
+            (restoredBounded && restoredAttempts > puzzles.size) ||
             restoredScore < 0 || restoredScore > restoredAttempts || restoredStreak < 0 ||
             restoredStreak > restoredScore || restoredBest < restoredStreak ||
             restoredBest > restoredScore || restoredFeedback.isBlank()
         ) return false
         puzzleIndex = restoredPuzzleIndex
+        startIndex = restoredStart
+        bounded = restoredBounded
         attempts = restoredAttempts
         score = restoredScore
         streak = restoredStreak

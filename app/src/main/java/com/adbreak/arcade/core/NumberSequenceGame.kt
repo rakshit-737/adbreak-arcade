@@ -1,5 +1,6 @@
 package com.adbreak.arcade.core
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.LinkedHashSet
 import java.util.Random
@@ -7,7 +8,7 @@ import java.util.Random
 class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
     override val id = "number_sequence"
     override val title = "Number Sequence"
-    override val description = "Spot an arithmetic, geometric, alternating, square, or mixed rule."
+    override val description = "Find ten missing terms; solve seven to clear the set."
 
     private var start = 2
     private var step = 3
@@ -26,6 +27,11 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
     private var incorrect = 0
     private var solved = 0
     private var feedback = "Choose the missing term"
+    private var answerChoices = listOf<Int>()
+    private var runAttempts = 0
+    private var runCorrect = 0
+    private var recordEligible = true
+    private val finished get() = runAttempts >= 10
 
     private val difficulty: Int
         get() = (1 + solved / 4).coerceAtMost(8)
@@ -70,6 +76,15 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
         answer = data.answer
         sequence = data.sequence
         rule = data.rule
+        // Forward Fisher-Yates: order is randomized once, then saved and rendered unchanged.
+        val options = choicesFor(answer, pattern, start, step, secondStep).toMutableList()
+        for (index in options.indices) {
+            val swap = index + random.nextInt(options.size - index)
+            val old = options[index]
+            options[index] = options[swap]
+            options[swap] = old
+        }
+        answerChoices = options
     }
 
     private data class PatternData(val sequence: String, val answer: Int, val rule: String)
@@ -106,29 +121,14 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
         return PatternData("${ints[0]}, ${ints[1]}, ${ints[2]}, ?, ${ints[4]}", missing, ruleText)
     }
 
-    private fun choices(): List<Int> {
-        val candidates = when (pattern) {
-            "geometric" -> listOf(answer, answer + step, answer / step, answer + 1, answer + step * 2)
-            "alternating" -> listOf(answer, answer + 1, answer - secondStep, answer + secondStep, answer - step)
-            "squares" -> listOf(answer, answer + 1, answer - 1, answer + 2 * (start + 3) + 1, answer - 2 * (start + 3) + 1)
-            "mixed" -> listOf(answer, answer + 1, answer - 1, answer + step, answer - step)
-            else -> listOf(answer, answer + 1, answer - step, answer + step, answer - 1)
-        }
-        val result = LinkedHashSet<Int>()
-        candidates.filter { it > 0 }.forEach(result::add)
-        var offset = 2
-        while (result.size < 4 && offset < 100) {
-            result.add((answer + offset).coerceAtLeast(1))
-            offset++
-        }
-        return result.toList().take(4)
-    }
-
     override fun reset() {
         score = 0
         streak = 0
         incorrect = 0
         solved = 0
+        runAttempts = 0
+        runCorrect = 0
+        recordEligible = true
         feedback = "Choose the missing term"
         newQuestion()
     }
@@ -138,6 +138,7 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
             reset()
             return true
         }
+        if (finished) return false
         val index = when (action) {
             GameAction.PRIMARY -> 0
             GameAction.SECONDARY -> 1
@@ -145,14 +146,16 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
             GameAction.CELL_2 -> 3
             else -> -1
         }
-        val options = choices()
+        val options = answerChoices
         if (index !in options.indices) return false
         val oldAnswer = answer
         val oldRule = rule
+        runAttempts++
         if (options[index] == oldAnswer) {
             val points = difficulty
             score += points
             solved++
+            runCorrect++
             streak++
             best = maxOf(best, streak)
             feedback = "Correct — $oldRule · +$points"
@@ -161,21 +164,29 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
             streak = 0
             feedback = "Not quite — $oldAnswer · $oldRule"
         }
-        newQuestion()
+        if (!finished) newQuestion()
         return true
     }
 
     override fun render() = GameViewState(
         title = title,
-        subtitle = "Level $difficulty · $sequence",
-        scoreLine = "Score $score  ·  Accuracy $accuracyPercent%  ·  Streak $streak  ·  Best $best",
-        buttons = choices().map { it.toString() },
-        buttonActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
+        subtitle = if (finished) "${if (runCorrect >= 7) "Set clear" else "Practice complete"} · $runCorrect/10 solved" else "Level $difficulty · $sequence",
+        scoreLine = "Score $score  ·  Accuracy $accuracyPercent%  ·  Goal 7/10 solved",
+        buttons = if (finished) listOf("NEW SET") else answerChoices.map { it.toString() },
+        buttonActions = if (finished) listOf(GameAction.NEW_GAME) else listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1, GameAction.CELL_2),
         feedback = feedback,
+        isTerminal = finished,
+        phase = if (!finished) GamePhase.PLAYING else if (runCorrect >= 7) GamePhase.WON else GamePhase.LOST,
+        progress = GameProgress(runAttempts, 10, "Sequences answered"),
+        record = if (finished && recordEligible) GameRecord(runCorrect, "Solved / 10") else null,
     )
 
     override fun encode() = JSONObject().apply {
-        put("v", 3)
+        put("v", 4)
+        put("choices", JSONArray(answerChoices))
+        put("runAttempts", runAttempts)
+        put("runCorrect", runCorrect)
+        put("recordEligible", recordEligible)
         put("start", start)
         put("step", step)
         put("secondStep", secondStep)
@@ -195,7 +206,7 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
     override fun restore(encoded: String): Boolean = runCatching {
         val json = JSONObject(encoded)
         val version = json.optInt("v", -1)
-        if (version !in 1..3) return false
+        if (version !in 1..4) return false
 
         val restoredStart = json.optInt("start", -1)
         val restoredStep = json.optInt("step", -1)
@@ -209,8 +220,14 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
         val restoredBest = json.optInt("best", -1)
         val restoredIncorrect = json.optInt("incorrect", 0)
         val restoredSolved = if (version >= 3) json.optInt("solved", restoredScore) else restoredScore
+        val restoredRunAttempts = if (version >= 4) json.optInt("runAttempts", -1) else 0
+        val restoredRunCorrect = if (version >= 4) json.optInt("runCorrect", -1) else 0
+        val restoredEligible = version >= 4 && json.optBoolean("recordEligible", false)
         val restoredFeedback = if (version == 1) "Choose the missing term" else json.optString("feedback")
-        if (restoredPattern !in setOf("arithmetic", "geometric", "alternating", "squares", "mixed") ||
+        if (restoredRunAttempts !in 0..10 || restoredRunCorrect !in 0..restoredRunAttempts ||
+            restoredRunCorrect > restoredSolved || restoredRunAttempts - restoredRunCorrect > restoredIncorrect ||
+            (restoredEligible && (restoredSolved != restoredRunCorrect || restoredIncorrect != restoredRunAttempts - restoredRunCorrect)) ||
+            restoredPattern !in setOf("arithmetic", "geometric", "alternating", "squares", "mixed") ||
             restoredStart < 1 || restoredStep < 1 || restoredSecondStep < 1 || restoredAnswer < 1 ||
             restoredSequence.isBlank() || restoredScore !in 0..1_000_000 || restoredStreak !in 0..1_000_000 ||
             restoredBest !in restoredStreak..1_000_000 || restoredIncorrect !in 0..1_000_000 ||
@@ -220,7 +237,12 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
         val expected = patternData(restoredPattern, restoredStart, restoredStep, restoredSecondStep) ?: return false
         if (restoredSequence != expected.sequence || restoredAnswer != expected.answer) return false
         if (version >= 3 && json.optString("rule") != expected.rule) return false
-        if (choicesFor(expected.answer, restoredPattern, restoredStart, restoredStep, restoredSecondStep).size != 4) return false
+        val expectedChoices = choicesFor(expected.answer, restoredPattern, restoredStart, restoredStep, restoredSecondStep)
+        val restoredChoices = if (version >= 4) {
+            val array = json.optJSONArray("choices") ?: return false
+            List(array.length()) { array.optInt(it, Int.MIN_VALUE) }
+        } else expectedChoices
+        if (expectedChoices.size != 4 || restoredChoices.size != 4 || restoredChoices.toSet() != expectedChoices.toSet()) return false
 
         start = restoredStart
         step = restoredStep
@@ -235,6 +257,10 @@ class NumberSequenceGame(private val random: Random = Random()) : ArcadeGame {
         best = restoredBest
         incorrect = restoredIncorrect
         solved = restoredSolved
+        answerChoices = restoredChoices
+        runAttempts = restoredRunAttempts
+        runCorrect = restoredRunCorrect
+        recordEligible = restoredEligible
         feedback = restoredFeedback
         true
     }.getOrDefault(false)

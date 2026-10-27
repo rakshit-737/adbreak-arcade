@@ -254,14 +254,16 @@ class MainActivity : AppCompatActivity() {
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
             block.addView(TextView(this).apply {
-                text = "${game.render().scoreLine}  ·  ${stats.plays} plays  ·  ${stats.actions} moves  ·  ${stats.roundsCompleted} completed"
+                val state = game.render()
+                text = if (stats.actions == 0) "No run yet — play from the notification to set a record." else "${state.feedback}\n${state.scoreLine}"
                 textSize = 14f
                 setTextColor(getColor(R.color.arcade_on_surface_variant))
                 setPadding(0, dp(6), 0, 0)
             })
             block.addView(TextView(this).apply {
-                text = "${presentation.family.label} family  ·  ${if (store.isFavorite(definition.id)) "Favorite" else "Ready"}"
-                textSize = 11f
+                val best = store.recordFor(definition.id)
+                text = listOfNotNull(best?.let { "Personal best · ${it.label} ${it.value}" }, "${stats.plays} plays · ${stats.roundsCompleted} completed").joinToString("\n")
+                textSize = 13f
                 setTextColor(getColor(R.color.arcade_on_surface_variant))
                 setPadding(0, dp(8), 0, 0)
             })
@@ -538,7 +540,7 @@ class MainActivity : AppCompatActivity() {
             text = presentation.motif
             textSize = 18f
             gravity = Gravity.CENTER
-            setTextColor(getColor(R.color.arcade_on_primary_container))
+            setTextColor(getColor(R.color.arcade_on_violet))
             setBackgroundResource(R.drawable.bg_violet_pill)
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(36)).apply { marginEnd = dp(10) }
         })
@@ -572,16 +574,33 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, dp(7), 0, dp(12))
         })
         if (selected) {
+            val state = store.loadGame(game.id).render()
             block.addView(TextView(this).apply {
-                text = "Selected game · start from the notification"
+                text = state.subtitle
                 textSize = 14f
                 setTextColor(getColor(R.color.arcade_on_primary_container))
                 setPadding(0, 0, 0, dp(8))
             })
+            state.progress?.takeIf { it.maximum > 0 }?.let { objective ->
+                block.addView(android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    max = objective.maximum
+                    progress = objective.current.coerceIn(0, max)
+                    contentDescription = "${objective.label}: ${objective.current} of ${objective.maximum}"
+                    layoutParams = LinearLayout.LayoutParams(-1, dp(8)).apply { bottomMargin = dp(8) }
+                })
+            }
         } else {
             block.addView(button("Use this game") {
                 store.select(game.id)
                 showLibrary()
+            })
+        }
+        store.recordFor(game.id)?.let { best ->
+            block.addView(TextView(this).apply {
+                text = "Personal best · ${best.label} ${best.value}"
+                textSize = 13f
+                setTextColor(getColor(R.color.arcade_on_surface_variant))
+                setPadding(0, 0, 0, dp(8))
             })
         }
         block.addView(button("Start notification") { startGame(game.id) })

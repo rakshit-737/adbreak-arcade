@@ -9,6 +9,9 @@
     <color name="notification_primary_text">#F3EFFA</color>
     <color name="notification_secondary_text">#C8C0D2</color>
     <color name="notification_accent">#C6B7FF</color>
+    <color name="notification_success">#83DFAC</color>
+    <color name="notification_error">#FFB1B9</color>
+    <color name="arcade_on_violet">#24105C</color>
     <color name="arcade_background">#0D0B12</color>
     <color name="arcade_surface_container">#1D1926</color>
     <color name="arcade_surface_high">#262130</color>

@@ -7,8 +7,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class ArcadeStore(context: Context) {
+    companion object {
+        // All controller instances (Activity, receiver, trigger) share one transaction boundary.
+        val sessionLock = Any()
+    }
     private val prefs = context.applicationContext.getSharedPreferences("arcade_state", Context.MODE_PRIVATE)
     private val profileKey = "arcade_profile_v1"
+    private val lastActionKey = "last_consumed_action"
     var selectedGameId: String
         get() = prefs.getString("selected_game", "tap_counter")?.takeIf(GameRegistry::isKnown) ?: "tap_counter"
         set(value) { if (GameRegistry.isKnown(value)) prefs.edit().putString("selected_game", value).apply() }
@@ -47,15 +52,119 @@ class ArcadeStore(context: Context) {
         get() = prefs.getLong("smart_trigger_cooldown", 60_000L).coerceIn(0L, 15 * 60_000L)
         set(value) = prefs.edit().putLong("smart_trigger_cooldown", value.coerceIn(0L, 15 * 60_000L)).apply()
 
-    fun loadGame(id: String = selectedGameId): ArcadeGame {
+    fun loadGame(id: String = selectedGameId): ArcadeGame = synchronized(sessionLock) {
         val safeId = id.takeIf(GameRegistry::isKnown) ?: "tap_counter"
-        return GameRegistry.create(safeId).also {
-            val saved = prefs.getString("state_$safeId", null)
-            if (saved != null && !it.restore(saved)) prefs.edit().remove("state_$safeId").apply()
-        }
+        val game = GameRegistry.create(safeId)
+        val saved = prefs.getString("state_$safeId", null)
+        if (saved != null && game.restore(saved)) return@synchronized game
+        // A rejected legacy restore must not leave a partially mutated fresh game.
+        val fresh = if (saved == null) game else GameRegistry.create(safeId)
+        val editor = prefs.edit().putString("state_$safeId", fresh.encode())
+        if (saved != null) editor.putString("unreadable_state_$safeId", saved).putBoolean("recovered_$safeId", true)
+        // Save the actual first puzzle before exposing it to a notification or preview.
+        check(editor.commit()) { "Unable to save game" }
+        fresh
+    }
+
+    fun hasSavedGame(id: String): Boolean = prefs.contains("state_$id")
+
+    val sessionNotice: String get() = prefs.getString("session_notice", "").orEmpty()
+    val controlsMenu: Boolean get() = prefs.getBoolean("controls_menu", false)
+    val cellPage: Int get() = prefs.getInt("cell_page", 0).coerceIn(0, 2)
+
+    fun beginSession(): Boolean = synchronized(sessionLock) {
+        val id = selectedGameId
+        val restored = hasSavedGame(id)
+        val game = loadGame(id)
+        prefs.edit()
+            .putString("state_$id", game.encode())
+            .putString("session_game", id)
+            .putLong("session_id", maxOf(System.currentTimeMillis(), sessionId + 1))
+            .putLong("render_revision", 0)
+            .putBoolean("active", true)
+            .putBoolean("paused", false)
+            .putBoolean("session_interacted", false)
+            .putBoolean("controls_menu", false)
+            .putInt("cell_page", 0)
+            .putString("session_notice", when {
+                prefs.getBoolean("recovered_$id", false) -> "Saved state unreadable · new round"
+                restored -> "Saved session restored"
+                else -> ""
+            })
+            .remove("recovered_$id")
+            .remove(lastActionKey)
+            .commit()
+    }
+
+    fun endSession(): Boolean = synchronized(sessionLock) {
+        prefs.edit().putBoolean("active", false).putBoolean("paused", false)
+            .putBoolean("session_interacted", false).putLong("session_id", sessionId + 1)
+            .putLong("render_revision", 0).putBoolean("controls_menu", false)
+            .putString("session_notice", "").commit()
     }
 
     fun saveGame(game: ArcadeGame) = prefs.edit().putString("state_${game.id}", game.encode()).commit()
+
+    /** Atomically persists an accepted gameplay move and its progression side effects. */
+    fun saveAcceptedAction(game: ArcadeGame, terminal: Boolean, roundStarted: Boolean, actionToken: String): Boolean = synchronized(sessionLock) {
+        if (prefs.getString(lastActionKey, null) == actionToken) return@synchronized false
+        val current = statsFor(game.id)
+        val next = current.copy(
+            plays = current.plays + if (roundStarted) 1 else 0,
+            actions = current.actions + 1,
+            roundsCompleted = current.roundsCompleted + if (terminal) 1 else 0,
+        )
+        val profile = readProfile()
+        profile.totalXp += (if (current.actions == 0) 10 else 0) + if (terminal) 10 else 0
+        profile.recent.remove(game.id)
+        profile.recent.add(0, game.id)
+        while (profile.recent.size > 5) profile.recent.removeAt(profile.recent.lastIndex)
+        val candidate = game.render().record
+        val best = recordFor(game.id)
+        val newRecord = candidate != null && candidate.value >= 0 && (best == null || best.beatenBy(candidate))
+        val editor = prefs.edit()
+            .putString("state_${game.id}", game.encode())
+            .putString("stats_${game.id}", next.encode())
+            .putString(profileKey, profile.encode())
+            .putString(lastActionKey, actionToken)
+            .putBoolean("session_interacted", true)
+            .putLong("render_revision", renderRevision + 1)
+            .putString("session_notice", if (newRecord) "Personal best · ${candidate!!.label} ${candidate.value}" else "")
+        if (newRecord) editor.putString("record_${game.id}", PersonalRecord.from(candidate!!).encode())
+        editor.commit()
+    }
+
+    /** Persists a reset/new-round action without counting it as gameplay. */
+    fun saveRoundReset(game: ArcadeGame, actionToken: String): Boolean = synchronized(sessionLock) {
+        if (prefs.getString(lastActionKey, null) == actionToken) return@synchronized false
+        prefs.edit()
+            .putString("state_${game.id}", game.encode())
+            .putBoolean("paused", false)
+            .putBoolean("session_interacted", false)
+            .putString(lastActionKey, actionToken)
+            .putLong("render_revision", renderRevision + 1)
+            .putBoolean("controls_menu", false)
+            .putInt("cell_page", 0)
+            .putString("session_notice", "")
+            .commit()
+    }
+
+    fun saveSessionAction(paused: Boolean, actionToken: String): Boolean = synchronized(sessionLock) {
+        if (prefs.getString(lastActionKey, null) == actionToken) return@synchronized false
+        prefs.edit()
+            .putBoolean("paused", paused)
+            .putString(lastActionKey, actionToken)
+            .putLong("render_revision", renderRevision + 1)
+            .putString("session_notice", "")
+            .commit()
+    }
+
+    fun saveControlsPage(menu: Boolean, page: Int = cellPage): Boolean = synchronized(sessionLock) {
+        prefs.edit().putBoolean("controls_menu", menu).putInt("cell_page", page.coerceIn(0, 2))
+            .putLong("render_revision", renderRevision + 1).commit()
+    }
+
+    fun recordFor(id: String): PersonalRecord? = PersonalRecord.decode(prefs.getString("record_$id", null))
 
     fun resetGame(id: String) {
         if (GameRegistry.isKnown(id)) prefs.edit().remove("state_$id").apply()
@@ -63,7 +172,8 @@ class ArcadeStore(context: Context) {
 
     fun clearGameHistory(id: String) {
         if (!GameRegistry.isKnown(id)) return
-        prefs.edit().remove("state_$id").remove("stats_$id").commit()
+        prefs.edit().remove("state_$id").remove("stats_$id").remove("record_$id")
+            .remove("unreadable_state_$id").remove("recovered_$id").commit()
         updateProfile { profile ->
             profile.recent.remove(id)
             profile
@@ -100,24 +210,6 @@ class ArcadeStore(context: Context) {
     fun totalXp(): Int = readProfile().totalXp
 
     fun statsFor(id: String): GameStats = GameStats.decode(prefs.getString("stats_$id", null))
-
-    /** Records only accepted gameplay moves; preparing or rendering a notification is not progression. */
-    fun recordGameAction(id: String, terminal: Boolean, roundStarted: Boolean) {
-        if (!GameRegistry.isKnown(id)) return
-        val current = statsFor(id)
-        val next = current.copy(
-            plays = current.plays + if (roundStarted) 1 else 0,
-            actions = current.actions + 1,
-            roundsCompleted = current.roundsCompleted + if (terminal) 1 else 0,
-        )
-        val editor = prefs.edit().putString("stats_$id", next.encode())
-        val profile = readProfile()
-        profile.totalXp += (if (current.actions == 0) 10 else 0) + if (terminal) 10 else 0
-        profile.recent.remove(id)
-        profile.recent.add(0, id)
-        while (profile.recent.size > 5) profile.recent.removeAt(profile.recent.lastIndex)
-        editor.putString(profileKey, profile.encode()).commit()
-    }
 
     private data class Profile(
         var totalXp: Int = 0,

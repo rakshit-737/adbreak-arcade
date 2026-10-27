@@ -6,7 +6,7 @@ the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
 Optional Smart App Triggers only observe foreground transitions for apps the user
 explicitly selects.
 
-## Current release: 1.3.0
+## Current release: 1.4.0
 
 This release hardens the seven original notification games around short,
 replayable turns: Tap Counter has a target sprint and combo scoring; Quick Math
@@ -18,6 +18,11 @@ offers arithmetic, geometric, alternating, square, and mixed rules with a single
 validated answer. Game state remains versioned JSON in local preferences, and
 stale notification actions are rejected by session and render revision.
 
+It also adds eight deeper notification-native campaigns: Cyber Heist, Pocket
+Dungeon, Neon Tactics, Cipher Vault, Prism Protocol, Starship Survival, Micro
+Tower Command, and Pulse Reactor. Each is turn-based, offline, replayable, and
+uses only the existing RemoteViews-safe controls.
+
 ## Community and legal
 
 - Source code license: [Apache License 2.0](LICENSE)
@@ -27,10 +32,12 @@ stale notification actions are rejected by session and render revision.
 
 ## What is implemented
 
-- Seventeen playable games: Tap Counter, Quick Math, Tic-Tac-Toe, Higher or
+- Twenty-five playable games: Tap Counter, Quick Math, Tic-Tac-Toe, Higher or
   Lower, Memory Challenge, Word Scramble, Number Sequence, Rock Paper Scissors,
   Odd One Out, Emoji Decode, Trivia Blitz, Mastermind Mini, Nim, Connect Three,
-  Guess the Pattern, Anagram Challenge, and Lights Out Mini.
+  Guess the Pattern, Anagram Challenge, Lights Out Mini, Cyber Heist, Pocket
+  Dungeon, Neon Tactics, Cipher Vault, Prism Protocol, Starship Survival, Micro
+  Tower Command, and Pulse Reactor.
 - Shared game interface, registry, action model, JSON state versioning, and
   local `SharedPreferences` persistence.
 - Compact collapsed notification plus a separate expanded `RemoteViews` layout.
@@ -247,16 +254,28 @@ production keystore. Configure protected release signing before distribution.
 
 ## Release status
 
-Version 1.3.0 is a locally verified release candidate when the commands above
+The second-pass gameplay review and its per-game evidence are in
+[`reports/GAMEPLAY_POLISH.md`](reports/GAMEPLAY_POLISH.md). The notification
+presentation, contrast measurements and outstanding device QA are documented in
+[`reports/notification-polish-qa.md`](reports/notification-polish-qa.md).
+
+Board games expose auxiliary moves in native notification actions. Use
+**Menu / details** for the full state, pause, restart or stop. At large font scale,
+the same menu selects other board rows. These controls never advance a game turn.
+Compact notifications summarize the current objective; expand to make moves.
+Personal records survive replay and reset, and are removed by **Clear selected
+game history**.
+
+Version 1.4.0 is a locally verified release candidate when the commands above
 complete successfully. CI validates the debug build and uploads a debug APK.
 The release build uses minification and resource shrinking, but production
 release signing is not configured in this repository. An
 `app-release-unsigned.apk` is not a distributable release; configure a protected
 keystore outside the repository before publishing.
 
-Automated JVM coverage includes all seven target game rules, invalid and terminal
-actions, deterministic generation constraints, scoring/streak progression, and
-state restoration. The Android notification smoke tests require a connected
+Automated JVM coverage includes the seven original target rules plus focused
+tests for the eight new games, invalid and terminal actions, deterministic
+generation constraints, scoring/streak progression, and state restoration. The Android notification smoke tests require a connected
 device or emulator and are not a substitute for manual OEM rendering checks.
 
 ## Project website

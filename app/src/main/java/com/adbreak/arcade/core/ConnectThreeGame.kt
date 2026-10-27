@@ -10,13 +10,15 @@ class ConnectThreeGame : ArcadeGame {
     private val board = CharArray(9) { '.' }
     private var moves = 0
     private var over = false
-    private var feedback = "Choose a column"
+    private var opening = 0
+    private var feedback = "You are X · tokens fall to the lowest empty space"
 
     override fun reset() {
         java.util.Arrays.fill(board, '.')
         moves = 0
         over = false
-        feedback = "Choose a column"
+        opening = (opening + 1) % 3
+        feedback = "You are X · tokens fall to the lowest empty space"
     }
 
     override fun apply(action: GameAction): Boolean {
@@ -41,17 +43,20 @@ class ConnectThreeGame : ArcadeGame {
             return true
         }
 
-        val computerColumn = chooseComputerColumn()
+        val winningReply = findWinningColumn('O')
+        val blockingReply = findWinningColumn('X')
+        val computerColumn = winningReply ?: blockingReply ?: chooseComputerColumn()
         val computerRow = findOpenRow(computerColumn)
         if (computerRow != null) board[computerRow * 3 + computerColumn] = 'O'
         if (hasWinner(board.concatToString(), 'O')) {
             over = true
-            feedback = "Arcade connected three"
+            feedback = "Arcade connected three · last drop in column ${computerColumn + 1}"
         } else if (board.none { it == '.' }) {
             over = true
             feedback = "Draw"
         } else {
-            feedback = "Your turn"
+            feedback = if (blockingReply != null) "Arcade blocked column ${computerColumn + 1} · your turn" else "Arcade dropped in column ${computerColumn + 1} · your turn"
+            findWinningColumn('O')?.let { feedback += " · Threat in column ${it + 1}" }
         }
         return true
     }
@@ -61,7 +66,8 @@ class ConnectThreeGame : ArcadeGame {
     private fun chooseComputerColumn(): Int {
         findWinningColumn('O')?.let { return it }
         findWinningColumn('X')?.let { return it }
-        listOf(1, 0, 2).firstOrNull { findOpenRow(it) != null }?.let { return it }
+        val preference = listOf(listOf(1, 0, 2), listOf(0, 2, 1), listOf(2, 1, 0))[opening]
+        preference.firstOrNull { findOpenRow(it) != null }?.let { return it }
         return 0
     }
 
@@ -77,20 +83,30 @@ class ConnectThreeGame : ArcadeGame {
         val boardText = (0..2).joinToString(" / ") { row ->
             board.slice(row * 3 until row * 3 + 3).joinToString("")
         }
+        val phase = when {
+            !over -> GamePhase.PLAYING
+            hasWinner(board.concatToString(), 'X') -> GamePhase.WON
+            hasWinner(board.concatToString(), 'O') -> GamePhase.LOST
+            else -> GamePhase.DRAW
+        }
+        val actions = listOf(GameAction.CELL_1, GameAction.CELL_2, GameAction.CELL_3)
+        val bestLine = lines.filter { line -> line.none { board[it] == 'O' } }
+            .maxOfOrNull { line -> line.count { board[it] == 'X' } } ?: 0
         return GameViewState(
             title = title,
-            subtitle = feedback,
+            subtitle = if (over) feedback else "Connect 3 X · row, column, or diagonal",
             scoreLine = "Moves $moves  ·  $boardText",
-            cellButtons = listOf("COL 1", "COL 2", "COL 3"),
-            cellActions = listOf(GameAction.CELL_1, GameAction.CELL_2, GameAction.CELL_3),
+            buttons = if (over) listOf("NEW ROUND") else emptyList(),
+            buttonActions = if (over) listOf(GameAction.NEW_GAME) else emptyList(),
+            cellButtons = if (over) emptyList() else listOf("COL 1", "COL 2", "COL 3"),
+            cellActions = if (over) emptyList() else actions,
             feedback = feedback,
             isTerminal = over,
-            phase = when {
-                !over -> GamePhase.PLAYING
-                feedback.contains("You connected", ignoreCase = true) -> GamePhase.WON
-                feedback.contains("Arcade connected", ignoreCase = true) -> GamePhase.LOST
-                else -> GamePhase.DRAW
-            }
+            phase = phase,
+            progress = GameProgress(bestLine, 3, "X tokens in best unblocked line"),
+            record = if (over) GameRecord(if (phase == GamePhase.WON) 2 else if (phase == GamePhase.DRAW) 1 else 0, "Result: win 2 / draw 1") else null,
+            disabledActions = if (over) emptyMap() else (0..2).filter { findOpenRow(it) == null }
+                .associate { actions[it] to "Column ${it + 1} is full" }
         )
     }
 
@@ -98,6 +114,7 @@ class ConnectThreeGame : ArcadeGame {
         put("v", 1)
         put("board", board.concatToString())
         put("moves", moves)
+        put("opening", opening)
         put("over", over)
         put("feedback", feedback)
     }.toString()
@@ -109,8 +126,9 @@ class ConnectThreeGame : ArcadeGame {
         val restoredMoves = json.optInt("moves", -1)
         val restoredOver = json.optBoolean("over")
         val restoredFeedback = json.optString("feedback")
+        val restoredOpening = json.optInt("opening", 0)
         if (restoredBoard.length != 9 || restoredBoard.any { it !in ".XO" } ||
-            !hasGravity(restoredBoard) || restoredMoves < 0 || restoredFeedback.isBlank()
+            !hasGravity(restoredBoard) || restoredMoves < 0 || restoredFeedback.isBlank() || restoredOpening !in 0..2
         ) return false
         val xCount = restoredBoard.count { it == 'X' }
         val oCount = restoredBoard.count { it == 'O' }
@@ -124,6 +142,7 @@ class ConnectThreeGame : ArcadeGame {
         if (restoredMoves != expectedMoves) return false
         restoredBoard.forEachIndexed { index, value -> board[index] = value }
         moves = restoredMoves
+        opening = restoredOpening
         over = restoredOver
         feedback = restoredFeedback
         true
@@ -143,13 +162,14 @@ class ConnectThreeGame : ArcadeGame {
     }
 
     companion object {
+        private val lines = listOf(
+            intArrayOf(0, 1, 2), intArrayOf(3, 4, 5), intArrayOf(6, 7, 8),
+            intArrayOf(0, 3, 6), intArrayOf(1, 4, 7), intArrayOf(2, 5, 8),
+            intArrayOf(0, 4, 8), intArrayOf(2, 4, 6)
+        )
+
         fun hasWinner(state: String, mark: Char): Boolean {
-            if (state.length != 9) return false
-            val lines = listOf(
-                intArrayOf(0, 1, 2), intArrayOf(3, 4, 5), intArrayOf(6, 7, 8),
-                intArrayOf(0, 3, 6), intArrayOf(1, 4, 7), intArrayOf(2, 5, 8),
-                intArrayOf(0, 4, 8), intArrayOf(2, 4, 6)
-            )
+            if (state.length != 9 || mark !in "XO") return false
             return lines.any { line -> line.all { state[it] == mark } }
         }
     }

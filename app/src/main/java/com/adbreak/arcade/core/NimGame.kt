@@ -5,23 +5,24 @@ import org.json.JSONObject
 class NimGame : ArcadeGame {
     override val id = "nim"
     override val title = "Nim"
-    override val description = "Take one to three stones, then survive the arcade's reply."
+    override val description = "Take 1–3 stones; taking the last wins. Leave multiples of four to control the reply."
 
-    private val startingStones = 13
+    private var startingStones = 13
     private var stones = startingStones
     private var wins = 0
     private var losses = 0
     private var moves = 0
     private var over = false
-    private var feedback = "Take 1–3 stones"
+    private var feedback = "Take 1–3 · last stone wins · aim to leave 4, 8, or 12"
 
     override fun reset() {
+        startingStones = if (startingStones == 15) 13 else startingStones + 1
         stones = startingStones
         wins = 0
         losses = 0
         moves = 0
         over = false
-        feedback = "Take 1–3 stones"
+        feedback = "Take 1–3 · last stone wins · aim to leave 4, 8, or 12"
     }
 
     override fun apply(action: GameAction): Boolean {
@@ -47,13 +48,14 @@ class NimGame : ArcadeGame {
         }
 
         val computerAmount = if (stones <= 3) stones else if (stones % 4 == 0) 1 else stones % 4
+        val leftSafePile = stones % 4 == 0
         stones -= computerAmount
         if (stones == 0) {
             losses++
             over = true
-            feedback = "Arcade took $computerAmount — arcade wins"
+            feedback = "Arcade took the last $computerAmount — arcade wins. Leave a multiple of 4 next time"
         } else {
-            feedback = "You took $amount · arcade took $computerAmount · $stones left"
+            feedback = "You took $amount · arcade took $computerAmount. ${if (leftSafePile) "Good: you left a multiple of 4" else "Arcade now controls the multiples of 4"}"
         }
         return true
     }
@@ -68,13 +70,15 @@ class NimGame : ArcadeGame {
                 buttonActions = listOf(GameAction.NEW_GAME),
                 feedback = feedback,
                 isTerminal = true,
-                phase = if (feedback.contains("you win", ignoreCase = true)) GamePhase.WON else GamePhase.LOST
+                phase = if (wins > 0) GamePhase.WON else GamePhase.LOST,
+                progress = GameProgress(startingStones, startingStones, "Stones removed"),
+                record = GameRecord(wins, "Round won / 1")
             )
         }
-        val amounts = (1..3).filter { it <= stones }
+        val amounts = (1..3)
         return GameViewState(
             title = title,
-            subtitle = "$stones stones remain",
+            subtitle = "$stones stones remain · take the last to win",
             scoreLine = "Wins $wins  ·  Losses $losses  ·  Moves $moves",
             buttons = amounts.map { "TAKE $it" },
             buttonActions = amounts.map { amount ->
@@ -84,13 +88,17 @@ class NimGame : ArcadeGame {
                     else -> GameAction.CELL_1
                 }
             },
-            feedback = feedback
+            feedback = feedback,
+            progress = GameProgress(startingStones - stones, startingStones, "Stones removed"),
+            disabledActions = listOf(GameAction.PRIMARY, GameAction.SECONDARY, GameAction.CELL_1)
+                .mapIndexedNotNull { index, action -> if (index + 1 > stones) action to "Only $stones stones remain" else null }.toMap()
         )
     }
 
     override fun encode() = JSONObject().apply {
         put("v", 1)
         put("stones", stones)
+        put("startingStones", startingStones)
         put("wins", wins)
         put("losses", losses)
         put("moves", moves)
@@ -107,12 +115,14 @@ class NimGame : ArcadeGame {
         val restoredMoves = json.optInt("moves", -1)
         val restoredOver = json.optBoolean("over")
         val restoredFeedback = json.optString("feedback")
-        if (restoredStones !in 0..startingStones || restoredWins !in 0..1 || restoredLosses !in 0..1 ||
+        val restoredStart = json.optInt("startingStones", 13)
+        if (restoredStart !in 13..15 || restoredStones !in 0..restoredStart || restoredWins !in 0..1 || restoredLosses !in 0..1 ||
             restoredMoves < 0 || restoredFeedback.isBlank() || restoredOver != (restoredStones == 0) ||
             restoredWins + restoredLosses != (if (restoredOver) 1 else 0) ||
             restoredWins + restoredLosses > restoredMoves
         ) return false
         stones = restoredStones
+        startingStones = restoredStart
         wins = restoredWins
         losses = restoredLosses
         moves = restoredMoves

@@ -14,6 +14,12 @@ enum class GamePhase {
     DRAW,
 }
 
+/** A discrete objective, never a timer. Labels explain what the bar measures. */
+data class GameProgress(val current: Int, val maximum: Int, val label: String)
+
+/** Offer only a genuinely comparable record (e.g. a run score or a solved move count). */
+data class GameRecord(val value: Int, val label: String, val higherIsBetter: Boolean = true)
+
 data class GameViewState(
     val title: String,
     val subtitle: String,
@@ -25,6 +31,9 @@ data class GameViewState(
     val feedback: String = "",
     val isTerminal: Boolean = false,
     val phase: GamePhase = GamePhase.PLAYING,
+    val progress: GameProgress? = null,
+    val record: GameRecord? = null,
+    val disabledActions: Map<GameAction, String> = emptyMap(),
 )
 
 interface ArcadeGame {

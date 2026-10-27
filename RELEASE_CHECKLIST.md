@@ -1,8 +1,21 @@
-# AdBreak Arcade 1.3.0 release checklist
+# AdBreak Arcade 1.4.0 release checklist
+
+## Second-pass local candidate (2026-10-26)
+
+- [x] All 25 games reviewed/simulated; per-game changes and rankings recorded in
+  `reports/GAMEPLAY_POLISH.md` and its linked scope reports.
+- [x] 171 JVM tests, debug lint/check, debug APK and instrumentation APK builds.
+- [x] Debug APK metadata, size, SHA-256 and debug signature verified; exact values
+  are in `reports/GAMEPLAY_POLISH.md`.
+- [x] Source color contrast measured; limitations in `reports/notification-polish-qa.md`.
+- [ ] Device execution: `connectedDebugAndroidTest` reported no connected devices.
+- [ ] Actual screenshots, OEM layouts, font scaling and TalkBack review.
 
 ## Automated checks
 
-- [x] Seven target games are registered and have versioned state restoration.
+- [x] Twenty-five games are registered and have versioned state restoration,
+  including Cyber Heist, Pocket Dungeon, Neon Tactics, Cipher Vault, Prism
+  Protocol, Starship Survival, Micro Tower Command, and Pulse Reactor.
 - [x] Notification channel, stable notification ID, immutable action intents,
   session IDs, and render revisions are implemented.
 - [x] Local game state, scores, recent games, and onboarding use

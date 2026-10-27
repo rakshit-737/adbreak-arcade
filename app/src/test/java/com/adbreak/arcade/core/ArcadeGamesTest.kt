@@ -3,6 +3,7 @@ package com.adbreak.arcade.core
 import org.junit.Assert.*
 import org.junit.Test
 import org.json.JSONObject
+import com.adbreak.arcade.ui.game.GamePresentationCatalog
 
 class ArcadeGamesTest {
     @Test fun everyRegisteredGameHasStableIdAndCanBeRecreated() {
@@ -13,7 +14,8 @@ class ArcadeGamesTest {
             assertTrue(it.render().title.isNotBlank())
             assertEquals(it.id, GameRegistry.create(it.id).id)
         }
-        assertEquals(17, games.size)
+        assertEquals(25, games.size)
+        games.forEach { assertTrue("Missing presentation for ${it.id}", GamePresentationCatalog.has(it.id)) }
     }
     @Test fun ticTacToeRejectsOccupiedMoveAndCanWin() { val game = TicTacToeGame(); assertTrue(game.apply(GameAction.CELL_1)); assertFalse(game.apply(GameAction.CELL_1)); assertTrue(game.apply(GameAction.RESET)); assertTrue(game.render().scoreLine.contains("·")) }
     @Test fun ticTacToeDetectsEveryWinLine() {
