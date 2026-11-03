@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { faq } from '../content'
+import { faq as defaultFaq, type FaqItem } from '../content'
 import { Icon } from './Icon'
 
-export function FaqList() {
+export function FaqList({ items = defaultFaq }: { items?: FaqItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
     <div className="faq-list">
-      {faq.map((item, index) => {
+      {items.map((item, index) => {
         const isOpen = openIndex === index
         const answerId = `faq-answer-${index}`
         return (
