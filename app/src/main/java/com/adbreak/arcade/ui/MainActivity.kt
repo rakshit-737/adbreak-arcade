@@ -222,7 +222,7 @@ class MainActivity : AppCompatActivity() {
             hint = "Search games by name or mechanic"
             contentDescription = "Search the arcade shelf"
             minHeight = dp(56)
-            singleLine = true
+            setSingleLine(true)
             setPadding(dp(16), 0, dp(16), 0)
             setBackgroundResource(R.drawable.bg_card)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) }
@@ -283,19 +283,19 @@ class MainActivity : AppCompatActivity() {
         fun addGames(games: List<ArcadeGame>) {
             games.forEach { game -> card(game, game.id == store.selectedGameId, results) }
         }
-        renderLibrary = {
+        renderLibrary = render@{
             results.removeAllViews()
             val visible = definitions.filter(::matches)
             val queryActive = search.text?.toString()?.trim().orEmpty().isNotBlank() || selectedFamily != null
             resultSummary.text = if (queryActive) "Showing ${visible.size} of ${definitions.size} games" else "${definitions.size} games · choose a family or search by mechanic"
             if (visible.isEmpty()) {
                 results.addView(statusBanner("No game matches that search. Try a different mechanic or choose All."))
-                return
+                return@render
             }
             if (queryActive) {
                 addSectionTitle("Matching games")
                 addGames(visible)
-                return
+                return@render
             }
             val favorites = visible.filter { store.isFavorite(it.id) }
             if (favorites.isNotEmpty()) {
