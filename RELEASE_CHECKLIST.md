@@ -1,4 +1,13 @@
-# AdBreak Arcade 1.4.0 release checklist
+# AdBreak Arcade 1.5.0 release checklist
+
+## 1.5.0 release candidate (2026-11-02)
+
+- [x] Android library search by name/mechanic and horizontally scrollable family filters.
+- [x] Favorites and recent sections remain grouped when the shelf is unfiltered.
+- [x] Version code `6`, version name `1.5.0`, and compile/target SDK 36 are aligned.
+- [x] Website release links, inventory copy, and testing instructions point to v1.5.0.
+- [x] Tag-triggered GitHub workflow builds checks, debug APK, unsigned release APK,
+  SHA-256 checksums, and publishes a prerelease with explicit testing notes.
 
 ## Second-pass local candidate (2026-10-26)
 
@@ -22,7 +31,7 @@
   `SharedPreferences` with JSON validation.
 - [x] Main lobby, library, scores, settings, onboarding, and notification
   permission paths are implemented.
-- [x] Supported range is API 26 minimum with compile/target API 36.
+- [x] Supported range is API 26 minimum with compile and target API 36.
 - [x] JVM tests cover legal, invalid, terminal, replay, scoring, generation,
   and restoration behavior for the target games.
 
@@ -42,4 +51,4 @@
 - [ ] If publishing a release APK, configure protected production signing outside
   the repository and verify the signed artifact separately.
 - [ ] Review `git diff --check`, secrets, generated outputs, and the complete diff.
-- [ ] Create a release commit/tag only with explicit authorization.
+- [x] Create and publish the v1.5.0 testing release only after local validation.

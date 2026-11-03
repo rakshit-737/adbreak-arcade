@@ -21,7 +21,7 @@ jobs:
         with:
           packages: 'platform-tools'
       - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-36" "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Run checks and assemble debug and release validation artifacts
@@ -31,3 +31,8 @@ jobs:
         with:
           name: adbreak-arcade-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload unsigned release APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: adbreak-arcade-release-unsigned-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk

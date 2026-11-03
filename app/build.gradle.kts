@@ -2,14 +2,14 @@ plugins { id("com.android.application") }
 
 android {
     namespace = "com.adbreak.arcade"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.adbreak.arcade"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -29,7 +29,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("com.google.android.material:material:1.14.0")
     testImplementation("junit:junit:4.13.2")
