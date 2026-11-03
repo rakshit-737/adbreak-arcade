@@ -2,7 +2,7 @@ plugins { id("com.android.application") }
 
 android {
     namespace = "com.adbreak.arcade"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.adbreak.arcade"

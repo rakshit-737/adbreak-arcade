@@ -73,7 +73,7 @@ uses only the existing RemoteViews-safe controls.
 ## Supported Android range
 
 - Minimum SDK: Android 8.0 / API 26.
-- Compile SDK: Android 17 / API 37; target SDK: Android 16 / API 36.
+- Compile and target SDK: Android 16 / API 36.
 - Android Gradle Plugin: 9.2.1. Gradle wrapper: 9.4.1. CI uses Temurin JDK
   17; JDK 25.0.1 was verified for the local build in this workspace. Use a JDK
   version supported by Gradle 9.4.1; “17 or newer” does not mean every future
@@ -87,7 +87,6 @@ Install or configure:
   Gradle 9.4.1. JDK 25.0.1 was verified for the local build.
 - Android SDK packages:
   - `platforms;android-36`
-  - `platforms;android-37`
   - `build-tools;36.0.0`
   - `platform-tools` for `adb` installation/device checks
 

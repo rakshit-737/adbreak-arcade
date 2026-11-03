@@ -4,7 +4,7 @@
 
 - [x] Android library search by name/mechanic and horizontally scrollable family filters.
 - [x] Favorites and recent sections remain grouped when the shelf is unfiltered.
-- [x] Version code `6`, version name `1.5.0`, and compile SDK 37 are aligned.
+- [x] Version code `6`, version name `1.5.0`, and compile/target SDK 36 are aligned.
 - [x] Website release links, inventory copy, and testing instructions point to v1.5.0.
 - [x] Tag-triggered GitHub workflow builds checks, debug APK, unsigned release APK,
   SHA-256 checksums, and publishes a prerelease with explicit testing notes.
@@ -31,7 +31,7 @@
   `SharedPreferences` with JSON validation.
 - [x] Main lobby, library, scores, settings, onboarding, and notification
   permission paths are implemented.
-- [x] Supported range is API 26 minimum with compile API 37 and target API 36.
+- [x] Supported range is API 26 minimum with compile and target API 36.
 - [x] JVM tests cover legal, invalid, terminal, replay, scoring, generation,
   and restoration behavior for the target games.
 
