@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -50,6 +51,12 @@ class MainActivity : AppCompatActivity() {
     private val requestCode = 7302
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val savedTheme = getSharedPreferences("arcade_state", MODE_PRIVATE).getString("theme_mode", "system")
+        AppCompatDelegate.setDefaultNightMode(when (savedTheme) {
+            "light" -> AppCompatDelegate.MODE_NIGHT_NO
+            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        })
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
@@ -184,7 +191,8 @@ class MainActivity : AppCompatActivity() {
         screen = Screen.HOME
         updateNavigation()
         content.removeAllViews()
-        heading("Make the waiting part yours", "Play an offline mini-game from the notification shade while your other app stays in front.")
+        heading("Make the waiting part yours", "A small arcade for the spaces between things. Play from the notification shade while another app stays in front.")
+        content.addView(homeMasthead())
         content.addView(progressCard())
         if (!store.onboardingCompleted) content.addView(onboardingCard())
         val game = store.loadGame()
@@ -370,6 +378,21 @@ class MainActivity : AppCompatActivity() {
         text(notificationStatus(), 15, false)
         content.addView(button("Open notification settings") { openNotificationSettings() })
         content.addView(button("Stop active notification") { notification.stop(); showSettings() })
+
+        text("Appearance", 18, true)
+        text("Use the system theme or choose a fixed light/dark presentation.", 15, false)
+        val themeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (mode, label) ->
+            themeRow.addView(button(label) { setThemeMode(mode) }.apply {
+                isSelected = store.themeMode == mode
+                setTextColor(getColor(if (isSelected) R.color.arcade_violet else R.color.arcade_on_surface_variant))
+                layoutParams = LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(6) }
+            })
+        }
+        content.addView(themeRow)
 
         text("Smart App Triggers", 18, true)
         text(if (store.smartTriggersEnabled) "Enabled — selected app launches are checked on the next available lifecycle poll." else "Disabled — no app-usage polling is active.", 15, false)
@@ -581,6 +604,38 @@ class MainActivity : AppCompatActivity() {
         topic("Respectful boundaries", "AdBreak Arcade does not detect, block, skip, overlay, or manipulate advertisements or other apps.")
         topic("Smart App Triggers", "Optional Usage access lets you select apps whose foreground transitions can prepare the notification on a best-effort basis. The feature is off until you enable it.")
         text("Version ${BuildConfig.VERSION_NAME}", 14, false)
+    }
+
+    private fun homeMasthead(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(18), dp(14), dp(18), dp(14))
+        setBackgroundResource(R.drawable.bg_card)
+        addView(TextView(context).apply {
+            text = "ADBREAK\nARCADE"
+            textSize = 13f
+            setTextColor(getColor(R.color.arcade_ink))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = .08f
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+        })
+        addView(TextView(context).apply {
+            text = if (store.active) "● LIVE IN SHADE" else "○ READY WHEN YOU ARE"
+            textSize = 10f
+            setTextColor(getColor(if (store.active) R.color.arcade_family_board else R.color.arcade_on_surface_variant))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(16)) }
+    }
+
+    private fun setThemeMode(mode: String) {
+        store.themeMode = mode
+        AppCompatDelegate.setDefaultNightMode(when (mode) {
+            "light" -> AppCompatDelegate.MODE_NIGHT_NO
+            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        })
+        showSettings()
     }
 
     private fun topic(title: String, body: String) {
