@@ -186,6 +186,10 @@ class ArcadeStore(context: Context) {
         get() = prefs.getBoolean("onboarding_completed", false)
         set(value) = prefs.edit().putBoolean("onboarding_completed", value).apply()
 
+    var themeMode: String
+        get() = prefs.getString("theme_mode", "system")?.takeIf { it in setOf("system", "light", "dark") } ?: "system"
+        set(value) { if (value in setOf("system", "light", "dark")) prefs.edit().putString("theme_mode", value).apply() }
+
     fun isFavorite(id: String): Boolean = readProfile().favorites.contains(id)
 
     fun toggleFavorite(id: String): Boolean {
