@@ -4,7 +4,7 @@
 
 | Version | Support |
 | --- | --- |
-| `v1.2.x` and the current development branch | Supported |
+| `v1.6.x` and the current development branch | Supported |
 | Older releases | Best effort only |
 
 The GitHub release APKs are debug testing artifacts. Production signing is not
