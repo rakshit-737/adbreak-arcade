@@ -9,6 +9,8 @@ export type Game = {
   icon: string
 }
 
+export type FaqItem = { question: string; answer: string }
+
 export const games: Game[] = [
   { id: 'tap_counter', title: 'Tap Counter', category: 'Action', description: 'Tap one compact control to build a running score.', signal: 'ONE CONTROL', icon: 'plus' },
   { id: 'quick_math', title: 'Quick Math', category: 'Words & knowledge', description: 'Solve short arithmetic prompts with four answers.', signal: 'FOUR ANSWERS', icon: 'grid' },
@@ -43,7 +45,7 @@ export const stats = [
   { value: '0', label: 'network permissions' },
 ]
 
-export const faq = [
+export const faq: FaqItem[] = [
   {
     question: 'What is AdBreak Arcade?',
     answer: 'A native Android app with 25 short offline mini-games that can be played from an expanded notification. Choose a game, start the notification, expand it, and play with ordinary notification controls.',
