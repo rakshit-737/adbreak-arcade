@@ -249,6 +249,7 @@ class MainActivity : AppCompatActivity() {
         content.addView(results)
 
         val families = listOf<GameFamily?>(null) + GameFamily.entries
+        lateinit var renderLibrary: () -> Unit
         fun renderFilters() {
             filterRow.removeAllViews()
             families.forEach { family ->
@@ -282,7 +283,7 @@ class MainActivity : AppCompatActivity() {
         fun addGames(games: List<ArcadeGame>) {
             games.forEach { game -> card(game, game.id == store.selectedGameId, results) }
         }
-        fun renderLibrary() {
+        renderLibrary = {
             results.removeAllViews()
             val visible = definitions.filter(::matches)
             val queryActive = search.text?.toString()?.trim().orEmpty().isNotBlank() || selectedFamily != null
