@@ -6,7 +6,13 @@ the foreground. It never detects, skips, clicks, blocks, or manipulates ads.
 Optional Smart App Triggers only observe foreground transitions for apps the user
 explicitly selects.
 
-## Current release: 1.4.0
+## Current release: 1.5.0
+
+The 1.5.0 testing release adds a faster Android library workflow: search the
+25-game shelf by name or mechanic, filter it by game family, and keep favorites
+and recent games visible when no filter is active. The release also synchronizes
+the project website and publishes reproducible debug and unsigned release
+validation artifacts with SHA-256 checksums.
 
 This release hardens the seven original notification games around short,
 replayable turns: Tap Counter has a target sprint and combo scoring; Quick Math
@@ -67,7 +73,7 @@ uses only the existing RemoteViews-safe controls.
 ## Supported Android range
 
 - Minimum SDK: Android 8.0 / API 26.
-- Compile and target SDK: Android 16 / API 36.
+- Compile SDK: Android 17 / API 37; target SDK: Android 16 / API 36.
 - Android Gradle Plugin: 9.2.1. Gradle wrapper: 9.4.1. CI uses Temurin JDK
   17; JDK 25.0.1 was verified for the local build in this workspace. Use a JDK
   version supported by Gradle 9.4.1; “17 or newer” does not mean every future
@@ -81,6 +87,7 @@ Install or configure:
   Gradle 9.4.1. JDK 25.0.1 was verified for the local build.
 - Android SDK packages:
   - `platforms;android-36`
+  - `platforms;android-37`
   - `build-tools;36.0.0`
   - `platform-tools` for `adb` installation/device checks
 
@@ -266,7 +273,7 @@ Compact notifications summarize the current objective; expand to make moves.
 Personal records survive replay and reset, and are removed by **Clear selected
 game history**.
 
-Version 1.4.0 is a locally verified release candidate when the commands above
+Version 1.5.0 is a locally verified testing release candidate when the commands above
 complete successfully. CI validates the debug build and uploads a debug APK.
 The release build uses minification and resource shrinking, but production
 release signing is not configured in this repository. An
@@ -300,7 +307,7 @@ expected published site is:
 https://rakshit-737.github.io/adbreak-arcade/
 ```
 
-The website labels the current `v1.2.0` debug APK as a testing artifact. It
+The website labels the current `v1.5.0` debug APK as a testing artifact. It
 does not describe the unsigned release build as production-ready, and it does
 not claim that Smart App Triggers detect advertisements or force open the
 notification shade.

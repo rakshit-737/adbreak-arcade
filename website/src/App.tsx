@@ -8,8 +8,8 @@ import { NotificationDemo } from './components/NotificationDemo'
 import { Reveal } from './components/Reveal'
 
 const repositoryUrl = 'https://github.com/rakshit-737/adbreak-arcade'
-const releaseUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/tag/v1.2.0'
-const apkUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/download/v1.2.0/app-debug.apk'
+const releaseUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/tag/v1.5.0'
+const apkUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/download/v1.5.0/adbreak-arcade-v1.5.0-debug.apk'
 
 const navItems = [
   { label: 'Features', href: '#features' },
@@ -75,7 +75,7 @@ export default function App() {
                 <span><Icon name="check" /> Local state</span>
                 <span><Icon name="check" /> No network permission</span>
               </div>
-              <p className="hero-release"><span className="release-dot" /> Published v1.2.0 debug APK remains available for testing <a href={releaseUrl}>View release</a></p>
+              <p className="hero-release"><span className="release-dot" /> v1.5.0 testing release is live · searchable 25-game shelf <a href={releaseUrl}>View release</a></p>
             </Reveal>
             <Reveal className="hero-preview" delay={80}>
               <NotificationDemo />
@@ -154,7 +154,7 @@ export default function App() {
         <section id="games" className="section section--games site-container">
           <Reveal className="section-heading section-heading--shelf">
             <div><span className="section-kicker">The shelf</span><h2>Twenty-five ways<br /><em>to spend a minute.</em></h2></div>
-            <div className="shelf-intro"><strong>17</strong><p>registered offline games, each shaped around notification-sized controls. Some use fixed built-in puzzle sets; all stay small enough to read at a glance.</p></div>
+            <div className="shelf-intro"><strong>25</strong><p>registered offline games, each shaped around notification-sized controls. Search the shelf by mechanic or filter it by family before you choose a run.</p></div>
           </Reveal>
           <Reveal delay={80}><GameShelf /></Reveal>
         </section>
@@ -212,9 +212,9 @@ export default function App() {
             <p>The repository currently ships a verified debug APK for testing. Production release signing is intentionally not configured in the public project.</p>
           </Reveal>
           <div className="install-grid">
-            <Reveal className="install-card install-card--primary" delay={80}><span className="install-card__number">01</span><h3>Build locally</h3><p>Use the Gradle wrapper with JDK 17 and Android SDK API 36.</p><code>./gradlew testDebugUnitTest<br />./gradlew assembleDebug</code><a className="text-link" href={repositoryUrl + '#readme'} target="_blank" rel="noreferrer">Read the setup notes <Icon name="external" /></a></Reveal>
-            <Reveal className="install-card" delay={140}><span className="install-card__number">02</span><h3>Install the test build</h3><p>Version 1.2.0 debug APK, signed with the standard Android debug key.</p><a className="button button--primary button--small" href={apkUrl}>Download debug APK <Icon name="arrow" /></a><span className="install-note">Testing artifact · not Play Store distribution</span></Reveal>
-            <Reveal className="install-card" delay={200}><span className="install-card__number">03</span><h3>Grant what you need</h3><p>Android 13/API 33+ needs notification permission. Smart App Triggers separately need Usage access.</p><a className="text-link" href={releaseUrl} target="_blank" rel="noreferrer">View the v1.2.0 release <Icon name="external" /></a></Reveal>
+            <Reveal className="install-card install-card--primary" delay={80}><span className="install-card__number">01</span><h3>Build locally</h3><p>Use the Gradle wrapper with JDK 17 and Android SDK compile API 37.</p><code>./gradlew testDebugUnitTest<br />./gradlew assembleDebug</code><a className="text-link" href={repositoryUrl + '#readme'} target="_blank" rel="noreferrer">Read the setup notes <Icon name="external" /></a></Reveal>
+            <Reveal className="install-card" delay={140}><span className="install-card__number">02</span><h3>Install the test build</h3><p>Version 1.5.0 debug APK, signed with the standard Android debug key.</p><a className="button button--primary button--small" href={apkUrl}>Download debug APK <Icon name="arrow" /></a><span className="install-note">Testing artifact · not Play Store distribution</span></Reveal>
+            <Reveal className="install-card" delay={200}><span className="install-card__number">03</span><h3>Grant what you need</h3><p>Android 13/API 33+ needs notification permission. Smart App Triggers separately need Usage access.</p><a className="text-link" href={releaseUrl} target="_blank" rel="noreferrer">View the v1.5.0 release <Icon name="external" /></a></Reveal>
           </div>
         </section>
 
@@ -225,7 +225,7 @@ export default function App() {
 
         <section className="section section--contribute site-container">
           <Reveal className="contribute-panel">
-            <div><span className="section-kicker">Bring a good idea</span><h2>Make the next<br /><em>small break better.</em></h2><p>The project is public to inspect and build. There is currently no project-level LICENSE file, so review the repository terms before reusing or redistributing code.</p></div>
+            <div><span className="section-kicker">Bring a good idea</span><h2>Make the next<br /><em>small break better.</em></h2><p>The project is public to inspect and build under the Apache 2.0 license. Read the contribution and security notes before reusing or redistributing code.</p></div>
             <div className="contribute-actions"><a className="button button--primary" href={repositoryUrl} target="_blank" rel="noreferrer">View the repository <Icon name="external" /></a><a className="button button--secondary" href={repositoryUrl + '/issues'} target="_blank" rel="noreferrer">Report an issue <Icon name="arrow" /></a><span className="mono-label">ANDROID CI · BUILDS ON MAIN + PRS</span></div>
           </Reveal>
         </section>

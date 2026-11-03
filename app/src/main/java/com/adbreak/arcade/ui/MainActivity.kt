@@ -36,6 +36,7 @@ import com.adbreak.arcade.trigger.SmartTriggerSettings
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.adbreak.arcade.ui.game.GamePresentationCatalog
+import com.adbreak.arcade.ui.game.GameFamily
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
@@ -215,21 +216,109 @@ class MainActivity : AppCompatActivity() {
         content.removeAllViews()
         val count = GameRegistry.definitions.size
         heading("The arcade shelf", "$count offline games designed around real notification controls.")
-        val favorites = GameRegistry.definitions.filter { store.isFavorite(it.id) }
-        if (favorites.isNotEmpty()) {
-            text("Favorites", 19, true)
-            favorites.forEach { game -> card(game, game.id == store.selectedGameId) }
+        val definitions = GameRegistry.definitions
+        var selectedFamily: GameFamily? = null
+        val search = EditText(this).apply {
+            hint = "Search games by name or mechanic"
+            contentDescription = "Search the arcade shelf"
+            minHeight = dp(56)
+            singleLine = true
+            setPadding(dp(16), 0, dp(16), 0)
+            setBackgroundResource(R.drawable.bg_card)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) }
         }
-        val favoriteIds = favorites.map { it.id }.toSet()
-        val recentIds = store.recentGameIds().filterNot { it in favoriteIds }
-        val recent = recentIds.mapNotNull { id -> GameRegistry.definitions.firstOrNull { it.id == id } }
-        if (recent.isNotEmpty()) {
-            text("Recent", 19, true)
-            recent.forEach { game -> card(game, game.id == store.selectedGameId) }
+        content.addView(search)
+
+        val filterRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        text("All games", 19, true)
-        val excludedIds = (favorites.map { it.id } + recent.map { it.id }).toSet()
-        GameRegistry.definitions.filterNot { it.id in excludedIds }.forEach { game -> card(game, game.id == store.selectedGameId) }
+        val filterScroller = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(filterRow, android.widget.FrameLayout.LayoutParams(-2, dp(56)))
+            layoutParams = LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(0, 0, 0, dp(8)) }
+        }
+        content.addView(filterScroller)
+
+        val resultSummary = textView("", 13, false).apply {
+            setTextColor(getColor(R.color.arcade_on_surface_variant))
+            setPadding(0, 0, 0, dp(8))
+        }
+        content.addView(resultSummary)
+        val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(results)
+
+        val families = listOf<GameFamily?>(null) + GameFamily.entries
+        fun renderFilters() {
+            filterRow.removeAllViews()
+            families.forEach { family ->
+                val label = family?.label ?: "All"
+                filterRow.addView(MaterialButton(this).apply {
+                    text = label
+                    isAllCaps = false
+                    minHeight = dp(44)
+                    minWidth = dp(0)
+                    contentDescription = "Filter by ${if (family == null) "all families" else "${family.label} games"}"
+                    setTextColor(getColor(if (selectedFamily == family) R.color.arcade_on_primary_container else R.color.arcade_on_surface_variant))
+                    setBackgroundResource(if (selectedFamily == family) R.drawable.bg_lilac_pill else R.drawable.bg_card)
+                    layoutParams = LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(8) }
+                    setOnClickListener {
+                        selectedFamily = family
+                        renderFilters()
+                        renderLibrary()
+                    }
+                })
+            }
+        }
+        fun matches(game: ArcadeGame): Boolean {
+            val query = search.text?.toString()?.trim().orEmpty()
+            val haystack = "${game.title} ${game.description} ${GamePresentationCatalog.forGame(game.id).family.label}".lowercase()
+            return (query.isBlank() || haystack.contains(query.lowercase())) &&
+                (selectedFamily == null || GamePresentationCatalog.forGame(game.id).family == selectedFamily)
+        }
+        fun addSectionTitle(title: String) {
+            results.addView(textView(title, 19, true).apply { setPadding(0, dp(8), 0, dp(8)) })
+        }
+        fun addGames(games: List<ArcadeGame>) {
+            games.forEach { game -> card(game, game.id == store.selectedGameId, results) }
+        }
+        fun renderLibrary() {
+            results.removeAllViews()
+            val visible = definitions.filter(::matches)
+            val queryActive = search.text?.toString()?.trim().orEmpty().isNotBlank() || selectedFamily != null
+            resultSummary.text = if (queryActive) "Showing ${visible.size} of ${definitions.size} games" else "${definitions.size} games · choose a family or search by mechanic"
+            if (visible.isEmpty()) {
+                results.addView(statusBanner("No game matches that search. Try a different mechanic or choose All."))
+                return
+            }
+            if (queryActive) {
+                addSectionTitle("Matching games")
+                addGames(visible)
+                return
+            }
+            val favorites = visible.filter { store.isFavorite(it.id) }
+            if (favorites.isNotEmpty()) {
+                addSectionTitle("Favorites")
+                addGames(favorites)
+            }
+            val favoriteIds = favorites.map { it.id }.toSet()
+            val recent = store.recentGameIds().filterNot { it in favoriteIds }
+                .mapNotNull { id -> visible.firstOrNull { it.id == id } }
+            if (recent.isNotEmpty()) {
+                addSectionTitle("Recent")
+                addGames(recent)
+            }
+            addSectionTitle("All games")
+            val excludedIds = (favorites.map { it.id } + recent.map { it.id }).toSet()
+            addGames(visible.filterNot { it.id in excludedIds })
+        }
+        renderFilters()
+        renderLibrary()
+        search.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = renderLibrary()
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
     }
 
     private fun showScores() {
@@ -525,7 +614,7 @@ class MainActivity : AppCompatActivity() {
         text(subtitle, 16, false)
     }
 
-    private fun card(game: ArcadeGame, selected: Boolean) {
+    private fun card(game: ArcadeGame, selected: Boolean, parent: LinearLayout = content) {
         val presentation = GamePresentationCatalog.forGame(game.id)
         val block = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -604,7 +693,7 @@ class MainActivity : AppCompatActivity() {
             })
         }
         block.addView(button("Start notification") { startGame(game.id) })
-        content.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) })
+        parent.addView(block, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) })
     }
 
     private fun text(value: String, size: Int, bold: Boolean) {
