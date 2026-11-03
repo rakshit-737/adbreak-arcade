@@ -44,6 +44,30 @@ preference as the initial theme, metadata, Open Graph copy, and 48px primary
 targets are required. Animation is a hint, never the only way to understand the
 page.
 
+## Immersive website experience 2.0
+
+The website's second experience layer is a lightweight interactive arcade, not
+a replacement app. It adds:
+
+- A staged hero arrival for the conceptual Android notification shade, with an
+  expandable notification and a small score loop.
+- A desktop-only custom cursor and restrained magnetic CTAs. Both disappear on
+  touch devices and under `prefers-reduced-motion`.
+- IntersectionObserver reveals, chapter-based product storytelling, tactile
+  cabinet hover states, and no scroll hijacking or continuous canvas loop.
+- Eight browser cabinets backed by tested reducer logic: Tap Counter, Quick
+  Math, Tic-Tac-Toe, Higher / Lower, Memory Challenge, Rock Paper Scissors,
+  Lights Out Mini, and Number Sequence.
+- A notification lab with compact/expanded states, game switching, pause/resume,
+  reset, and feedback. It remains labelled as a browser simulation.
+- Catalogue preview dialogs, local demo favourites, search, category filters,
+  keyboard escape handling, and responsive touch-sized controls.
+
+The experience intentionally uses CSS, SVG, DOM state, and small reducer
+modules instead of WebGL or a large animation dependency. Heavy visual effects
+would compete with the notification concept and make the GitHub Pages build
+less portable.
+
 ## Android rules
 
 The native app keeps Kotlin, Android Views/XML, `GameRegistry`, the existing

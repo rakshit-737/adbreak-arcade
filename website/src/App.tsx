@@ -1,107 +1,69 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { architectureSteps, faq, games, stats } from './content'
+import { ArcadeLab } from './components/ArcadeLab'
 import { BrandMark } from './components/BrandMark'
 import { FaqList } from './components/FaqList'
 import { GameShelf } from './components/GameShelf'
+import { HeroShade } from './components/HeroShade'
 import { Icon } from './components/Icon'
+import { CursorLayer, Magnetic } from './components/InteractionLayer'
 import { NotificationDemo } from './components/NotificationDemo'
+import { Reveal } from './components/Reveal'
 
 const repositoryUrl = 'https://github.com/rakshit-737/adbreak-arcade'
 const releaseUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/tag/v1.6.0'
 const apkUrl = 'https://github.com/rakshit-737/adbreak-arcade/releases/download/v1.6.0/adbreak-arcade-v1.6.0-debug.apk'
-
-const navItems = [
-  { label: 'Product', href: '#product' },
-  { label: 'Games', href: '#games' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Download', href: '#download' },
-]
+const navItems = [{ label: 'Product', href: '#product' }, { label: 'Play', href: '#play' }, { label: 'Games', href: '#games' }, { label: 'Download', href: '#download' }]
 
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = window.localStorage.getItem('adbreak-theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return saved === 'light' || saved === 'dark' ? saved : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
 
+  useEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem('adbreak-theme', theme) }, [theme])
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('adbreak-theme', theme)
-  }, [theme])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false) }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
   }, [])
 
-  const closeMenu = () => setMenuOpen(false)
+  return <div className="site-shell">
+    <CursorLayer />
+    <a className="skip-link" href="#main-content">Skip to content</a>
+    <header className="site-header"><div className="site-container site-header__inner"><a className="brand-link" href="#top" aria-label="AdBreak Arcade home" data-cursor="home"><BrandMark /></a><nav id="primary-navigation" className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Primary navigation">{navItems.map((item) => <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)} data-cursor="go">{item.label}</a>)}<a href={repositoryUrl} target="_blank" rel="noreferrer" data-cursor="source"><Icon name="external" /> GitHub</a><Magnetic className="nav-download" href={apkUrl} cursor="download">Test APK <Icon name="arrow" /></Magnetic></nav><div className="header-actions"><button className="theme-toggle" type="button" onClick={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} data-cursor="theme"><span aria-hidden="true">{theme === 'dark' ? '☼' : '◐'}</span></button><button className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="primary-navigation" onClick={() => setMenuOpen((value) => !value)}><span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span><Icon name={menuOpen ? 'x' : 'menu'} /></button></div></div></header>
 
-  return (
-    <div className="site-shell">
-      <a className="skip-link" href="#main-content">Skip to content</a>
-      <header className="site-header">
-        <div className="site-container site-header__inner">
-          <a className="brand-link" href="#top" onClick={closeMenu} aria-label="AdBreak Arcade home"><BrandMark /></a>
-          <nav id="primary-navigation" className={`site-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Primary navigation">
-            {navItems.map((item) => <a key={item.href} href={item.href} onClick={closeMenu}>{item.label}</a>)}
-            <a href={repositoryUrl} target="_blank" rel="noreferrer"><Icon name="external" /> GitHub</a>
-            <a className="nav-download" href={apkUrl}>Test APK <Icon name="arrow" /></a>
-          </nav>
-          <div className="header-actions">
-            <button className="theme-toggle" type="button" onClick={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
-              <span aria-hidden="true">{theme === 'dark' ? '☼' : '◐'}</span>
-            </button>
-            <button className="menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="primary-navigation" onClick={() => setMenuOpen((value) => !value)}>
-              <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span><Icon name={menuOpen ? 'x' : 'menu'} />
-            </button>
-          </div>
-        </div>
-      </header>
+    <main id="main-content">
+      <section id="top" className="hero-section site-container"><div className="hero-grid"><Reveal className="hero-copy"><p className="eyebrow hero-eyebrow"><span className="eyebrow__mark" /> Native Android / 25 offline games</p><h1>Your next game is already in your <em>notification shade.</em></h1><p className="hero-lede">25 tiny games. Zero distractions. An entire arcade, right inside Android notifications.</p><div className="hero-actions"><Magnetic className="button button--primary" href="#play" cursor="play">Explore the arcade <Icon name="arrow" /></Magnetic><Magnetic className="button button--secondary" href={apkUrl} cursor="download">Get the Android app <Icon name="arrow" /></Magnetic></div><p className="release-status"><span className="status-dot" /> v1.6.0 testing release · <a href={releaseUrl}>view release</a></p></Reveal><Reveal className="hero-product" delay={120}><HeroShade /></Reveal></div><div className="hero-index" aria-hidden="true"><span>01 / ARRIVAL</span><span>ADBREAK / 2026</span><span>ANDROID SYSTEM UI</span></div></section>
 
-      <main id="main-content">
-        <section id="top" className="hero-section site-container">
-          <div className="hero-grid">
-            <div className="hero-copy">
-              <p className="eyebrow"><span className="eyebrow__mark" /> Native Android / 25 offline games</p>
-              <h1>Your next game is already in the <em>notification shade.</em></h1>
-              <p className="hero-lede">Twenty-five small offline games. One expanded Android notification. Play while the rest of your phone stays yours.</p>
-              <div className="hero-actions"><a className="button button--primary" href="#games">Explore the games <Icon name="arrow" /></a><a className="button button--secondary" href={apkUrl}>Download testing APK <Icon name="arrow" /></a></div>
-              <p className="release-status"><span className="status-dot" /> v1.6.0 testing release · <a href={releaseUrl}>view release notes</a></p>
-            </div>
-            <div className="hero-product"><NotificationDemo /></div>
-          </div>
-          <div className="hero-index" aria-hidden="true"><span>01</span><span>ADBREAK / 2026</span><span>ANDROID SYSTEM UI</span></div>
-        </section>
+      <section className="fact-rail" aria-label="Project facts"><div className="site-container fact-rail__inner">{stats.map((stat) => <div className="fact" key={stat.label}><strong>{stat.value}</strong><span>{stat.label}</span></div>)}<div className="fact fact--wide"><span className="eyebrow">No account · no backend · no network permission</span><span>Built for the two minutes between things.</span></div></div></section>
 
-        <section className="fact-rail" aria-label="Project facts"><div className="site-container fact-rail__inner">{stats.map((stat) => <div className="fact" key={stat.label}><strong>{stat.value}</strong><span>{stat.label}</span></div>)}<div className="fact fact--wide"><span className="eyebrow">No account · no backend · no network permission</span><span>Built for the two minutes between things.</span></div></div></section>
+      <section id="product" className="section section--product site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">The product / chapter 01</p><h2>A handheld arcade that lives <em>between apps.</em></h2></div><p>AdBreak Arcade puts short game decisions inside the expanded notification you already know how to use. The app disappears; the little machine remains.</p></Reveal><Reveal className="product-grid" delay={100}><ProductNote index="A / 01" title="Small enough to keep open." copy="Start a run, switch back to your other app, and return to the shade when you have a moment. Game state and score remain on the device." /><ProductNote dark index="B / 02" title="Native enough to feel honest." copy="Android owns the outer shell. AdBreak Arcade supplies RemoteViews-safe controls, clear state, and session-bound actions." /><ProductNote index="C / 03" title="Quiet by default." copy="No account, analytics, ad detection, overlay, or network permission. Smart App Triggers stay off until you configure them." /></Reveal></section>
 
-        <section id="product" className="section section--product site-container">
-          <div className="section-intro section-intro--split"><div><p className="eyebrow">The product</p><h2>A handheld arcade that lives <em>between apps.</em></h2></div><p>AdBreak Arcade does one unusual thing carefully: it puts short game decisions inside the expanded notification you already know how to use.</p></div>
-          <div className="product-grid"><div className="product-note"><span className="note-index">A / 01</span><h3>Small enough to keep open.</h3><p>Start a run, switch back to your other app, and return to the shade when you have a moment. The game state and score remain on the device.</p><span className="rule-line" /></div><div className="product-note product-note--dark"><span className="note-index">B / 02</span><h3>Native enough to feel honest.</h3><p>Android owns the outer shell. The app supplies RemoteViews-safe controls, clear state, and session-bound actions.</p><span className="rule-line" /></div><div className="product-note"><span className="note-index">C / 03</span><h3>Quiet by default.</h3><p>No account, analytics, ad detection, overlay, or network permission. Smart App Triggers stay off until you explicitly configure them.</p><span className="rule-line" /></div></div>
-        </section>
+      <section id="how-it-works" className="section section--story site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">The loop / three chapters</p><h2>Choose once. Then get back to <em>your life.</em></h2></div><p>The product story is deliberately short: a game shelf, a notification, and a few controls that respect the screen you were already using.</p></Reveal><div className="story-chapters"><StoryChapter index="01" title="Choose your game" detail="A shelf of 25 offline games, organized by the kind of attention you have." visual={<div className="chapter-shelf"><span>01</span><b>Tap Counter</b><small>ONE CONTROL</small><span>02</span><b>Quick Math</b><small>FOUR ANSWERS</small><span>03</span><b>Prism Protocol</b><small>BEAM ROUTING</small></div>} /><StoryChapter index="02" title="Start your notification" detail="Tap one action. Android places a quiet, expandable surface in the shade." visual={<div className="chapter-notification"><span className="notification-app-icon"><Icon name="plus" /></span><div><b>AdBreak Arcade</b><small>Tap Counter · READY</small></div><strong>STARTED</strong></div>} /><StoryChapter index="03" title="Get back to your life" detail="Your other app stays in front. The arcade waits until you pull down the shade." visual={<div className="chapter-phone"><div className="chapter-phone__app">the rest of your phone</div><div className="chapter-phone__shade"><small>NOTIFICATION SHADE</small><b>Make one move.</b><span>TAP&nbsp;&nbsp;&nbsp; RESET&nbsp;&nbsp;&nbsp; PAUSE</span></div></div>} /></div></section>
 
-        <section id="how-it-works" className="section section--how site-container"><div className="section-intro section-intro--split"><div><p className="eyebrow">The loop</p><h2>Three moves from idle to <em>occupied.</em></h2></div><p>The app stays out of the way. Choose once, start once, then make ordinary notification moves while your current screen remains in front.</p></div><div className="workflow"><WorkflowStep index="01" title="Choose a game" detail="Open the shelf and pick a one-minute mechanic." /><WorkflowStep index="02" title="Start the notification" detail="Tap Start notification, then switch back to what you were doing." /><WorkflowStep index="03" title="Expand and play" detail="Pull down the shade and use the visible controls. Reset or stop any time." /></div></section>
+      <section id="play" className="section section--play site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">The arcade / playable in browser</p><h2>Eight cabinets. <em>Zero quarters.</em></h2></div><p>These are compact browser demonstrations inspired by the Android shelf. Each has real rules, a restart, feedback, and a small score to chase.</p></Reveal><Reveal delay={100}><ArcadeLab /></Reveal></section>
 
-        <section id="demo" className="section section--demo site-container"><div className="section-intro section-intro--split"><div><p className="eyebrow">Try the rhythm</p><h2>The notification is the <em>game board.</em></h2></div><p>This is a working website simulation, not a live Android notification. Switch examples, collapse the card, make moves, and watch the state change.</p></div><NotificationDemo /></section>
+      <section id="demo" className="section section--demo site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">The notification lab / chapter 04</p><h2>The notification is the <em>game board.</em></h2></div><p>Expand, collapse, pause, change the example, and make a move. This is a browser simulation—not a live Android notification—and the Android version stays within its platform boundaries.</p></Reveal><Reveal delay={100}><NotificationDemo /></Reveal></section>
 
-        <section id="games" className="section section--games site-container"><div className="section-intro section-intro--split"><div><p className="eyebrow">The collection / {games.length} games</p><h2>Curated for the <em>small break.</em></h2></div><p>Every title in the catalogue is registered by the Android GameRegistry. Search by name or mechanic, then choose the kind of attention you have.</p></div><GameShelf /></section>
+      <section id="games" className="section section--games site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">The collection / {games.length} games</p><h2>Curated for the <em>small break.</em></h2></div><p>Every title is registered by the Android GameRegistry. Search by name, mechanic, or family, then open a tile for its objective and control language.</p></Reveal><Reveal delay={100}><GameShelf /></Reveal></section>
 
-        <section className="section section--privacy site-container"><div className="privacy-layout"><div><p className="eyebrow">Privacy, plainly</p><h2>Your game state stays <em>on the device.</em></h2><p className="body-copy">Manual notification play is local and offline. Optional Smart App Triggers are a separate, disabled-by-default capability: they use Android Usage access to observe selected apps' foreground transitions, never their content.</p></div><div className="privacy-board"><div><span>ACCOUNT</span><strong>NONE</strong></div><div><span>NETWORK</span><strong>NOT DECLARED</strong></div><div><span>TRIGGERS</span><strong>OPT-IN</strong></div><div><span>AD DETECTION</span><strong>NO</strong></div><p>Best-effort lifecycle polling. No forced shade opening.</p></div></div></section>
+      <section className="section section--progress site-container"><Reveal className="progress-layout"><div><p className="eyebrow">A local player profile / sample interface</p><h2>Your progress, <em>kept close.</em></h2><p className="body-copy">XP, recent games, favourites, records, and completion counts live on the device. Nothing is gated; progression is a quiet record of the breaks you chose to take.</p></div><div className="progress-card"><div className="progress-card__top"><span>ARCADE LEVEL</span><strong>07</strong><span>LOCAL / SAMPLE</span></div><div className="xp-track"><span /></div><div className="progress-card__meta"><span>640 XP</span><span>760 TO LEVEL 08</span></div><div className="progress-card__rows"><div><span>RECENT</span><strong>Tap Counter · Prism Protocol</strong></div><div><span>BEST RUN</span><strong>Quick Math · 18 correct</strong></div><div><span>FAVOURITES</span><strong>04 saved locally</strong></div></div></div></Reveal></section>
 
-        <section id="technology" className="section section--technology site-container"><div className="section-intro section-intro--split"><div><p className="eyebrow">Under the card</p><h2>Native all the way down to the <em>action.</em></h2></div><p>The architecture keeps game rules independent from the platform surface so every move can be checked, persisted, and rendered safely.</p></div><div className="architecture-map">{architectureSteps.map((step, index) => <div className="architecture-node" key={step.label}><span>{String(index + 1).padStart(2, '0')}</span><strong>{step.label}</strong><code>{step.detail}</code></div>)}</div></section>
+      <section className="section section--privacy site-container"><Reveal className="privacy-layout"><div><p className="eyebrow">Privacy, plainly</p><h2>Nothing follows you <em>out of the shade.</em></h2><p className="body-copy">Manual notification play is local and offline. Optional Smart App Triggers are a separate, disabled-by-default capability: they use Android Usage access to observe selected apps' foreground transitions, never their content.</p></div><div className="privacy-board"><PrivacyRow label="ACCOUNT" value="NONE" /><PrivacyRow label="NETWORK" value="NOT DECLARED" /><PrivacyRow label="ANALYTICS" value="NONE" /><PrivacyRow label="TRIGGERS" value="OPT-IN" /><PrivacyRow label="AD DETECTION" value="NO" /><p>Best-effort lifecycle polling. No forced shade opening.</p></div></Reveal></section>
 
-        <section id="download" className="section section--download site-container"><div className="download-panel"><div><p className="eyebrow">Put it on a device</p><h2>Build it. Test it. <em>Then play.</em></h2><p>v1.6.0 is a testing release. The debug APK is installable and signed with the standard Android debug key; the minified release APK is unsigned for validation.</p></div><div className="download-actions"><a className="button button--primary" href={apkUrl}>Download debug APK <Icon name="arrow" /></a><a className="button button--secondary" href={releaseUrl} target="_blank" rel="noreferrer">Release assets <Icon name="external" /></a><span>Testing artifact · not Play Store distribution</span></div></div></section>
+      <section id="technology" className="section section--technology site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">Under the card</p><h2>Native all the way down to the <em>action.</em></h2></div><p>The architecture keeps game rules independent from the platform surface so every move can be checked, persisted, and rendered safely.</p></Reveal><Reveal className="architecture-map" delay={100}>{architectureSteps.map((step, index) => <div className="architecture-node" key={step.label}><span>{String(index + 1).padStart(2, '0')}</span><strong>{step.label}</strong><code>{step.detail}</code></div>)}</Reveal></section>
 
-        <section className="section section--faq site-container"><div className="section-intro section-intro--split"><div><p className="eyebrow">Clear edges</p><h2>Questions before the <em>first tap.</em></h2></div><p>The short answers are the product boundary: notification controls, local state, opt-in triggers, and the things Android still owns.</p></div><FaqList items={faq} /></section>
-      </main>
+      <section id="download" className="section section--download site-container"><Reveal className="download-panel"><div><p className="eyebrow">Put it on a device</p><h2>Build it. Test it. <em>Then play.</em></h2><p>v1.6.0 is a testing release. The debug APK is installable and signed with the standard Android debug key; the minified release APK is unsigned for validation.</p></div><div className="download-actions"><Magnetic className="button button--primary" href={apkUrl} cursor="download">Download debug APK <Icon name="arrow" /></Magnetic><Magnetic className="button button--secondary" href={releaseUrl} cursor="release">Release assets <Icon name="external" /></Magnetic><span>Testing artifact · not Play Store distribution</span></div></Reveal></section>
 
-      <footer className="site-footer"><div className="site-container footer-grid"><div><BrandMark /><p>Short games for the spaces between things.</p></div><div><span className="eyebrow">Project</span><a href={repositoryUrl} target="_blank" rel="noreferrer">GitHub</a><a href={releaseUrl} target="_blank" rel="noreferrer">Releases</a></div><div><span className="eyebrow">Notes</span><a href={`${repositoryUrl}/blob/main/README.md`} target="_blank" rel="noreferrer">Documentation</a><a href={`${repositoryUrl}/blob/main/SECURITY.md`} target="_blank" rel="noreferrer">Security</a></div></div><div className="site-container footer-bottom"><span>ADBREAK ARCADE · APACHE 2.0 · v1.6.0</span><a href="#top">Back to top ↑</a></div></footer>
-    </div>
-  )
+      <section className="section section--faq site-container"><Reveal className="section-intro section-intro--split"><div><p className="eyebrow">Clear edges</p><h2>Questions before the <em>first tap.</em></h2></div><p>The short answers are the product boundary: notification controls, local state, opt-in triggers, and the things Android still owns.</p></Reveal><Reveal delay={100}><FaqList items={faq} /></Reveal></section>
+    </main>
+
+    <footer className="site-footer"><div className="site-container footer-grid"><div><BrandMark /><p>Short games for the spaces between things.</p></div><div><span className="eyebrow">Project</span><a href={repositoryUrl} target="_blank" rel="noreferrer">GitHub</a><a href={releaseUrl} target="_blank" rel="noreferrer">Releases</a></div><div><span className="eyebrow">Notes</span><a href={`${repositoryUrl}/blob/main/README.md`} target="_blank" rel="noreferrer">Documentation</a><a href={`${repositoryUrl}/blob/main/SECURITY.md`} target="_blank" rel="noreferrer">Security</a></div></div><div className="site-container footer-bottom"><span>ADBREAK ARCADE · APACHE 2.0 · v1.6.0</span><a href="#top">Back to top ↑</a></div></footer>
+  </div>
 }
 
-function WorkflowStep({ index, title, detail }: { index: string; title: string; detail: string }) {
-  return <article className="workflow-step"><span>{index}</span><div><h3>{title}</h3><p>{detail}</p></div><Icon name="arrow" /></article>
-}
+function ProductNote({ index, title, copy, dark = false }: { index: string; title: string; copy: string; dark?: boolean }) { return <article className={`product-note ${dark ? 'product-note--dark' : ''}`}><span className="note-index">{index}</span><h3>{title}</h3><p>{copy}</p><span className="rule-line" /></article> }
+function StoryChapter({ index, title, detail, visual }: { index: string; title: string; detail: string; visual: ReactNode }) { return <article className="story-chapter"><div className="story-chapter__visual">{visual}</div><div className="story-chapter__copy"><span>{index}</span><h3>{title}</h3><p>{detail}</p></div></article> }
+function PrivacyRow({ label, value }: { label: string; value: string }) { return <div><span>{label}</span><strong>{value}</strong></div> }
