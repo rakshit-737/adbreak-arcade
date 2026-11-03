@@ -76,7 +76,7 @@ export const faq: FaqItem[] = [
   },
   {
     question: 'Is the APK ready for Google Play?',
-    answer: 'Not yet. The current v1.5.0 debug APK is available for testing. Production signing is not configured in the repository, and the release build is not a distributable production artifact.',
+    answer: 'Not yet. The current v1.6.0 debug APK is available for testing. Production signing is not configured in the repository, and the release build is not a distributable production artifact.',
   },
 ]
 

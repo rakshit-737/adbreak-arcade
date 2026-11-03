@@ -1,10 +1,24 @@
-# AdBreak Arcade 1.5.0 release checklist
+# AdBreak Arcade 1.6.0 release checklist
+
+## 1.6.0 product redesign (2026-11-03)
+
+- [x] Website rebuilt around warm editorial paper, charcoal, orange, olive, and
+  three-family typography rather than the previous violet SaaS visual system.
+- [x] Working compact/expanded notification simulation with tap, math,
+  higher/lower, reset, game switching, keyboard controls, and honest conceptual
+  labelling.
+- [x] Website catalogue, privacy boundaries, architecture map, download section,
+  mobile navigation, persisted theme toggle, SEO metadata, and Open Graph copy
+  match the 25-game product.
+- [x] Android launcher uses the shared visual language, adds a branded home
+  masthead, and provides system/light/dark appearance override.
+- [x] Version code `7`, version name `1.6.0`, and compile/target SDK 36 are aligned.
 
 ## 1.5.0 release candidate (2026-11-02)
 
 - [x] Android library search by name/mechanic and horizontally scrollable family filters.
 - [x] Favorites and recent sections remain grouped when the shelf is unfiltered.
-- [x] Version code `6`, version name `1.5.0`, and compile/target SDK 36 are aligned.
+- [x] Version code `6`, version name `1.5.0`, and compile/target SDK 36 were aligned.
 - [x] Website release links, inventory copy, and testing instructions point to v1.5.0.
 - [x] Tag-triggered GitHub workflow builds checks, debug APK, unsigned release APK,
   SHA-256 checksums, and publishes a prerelease with explicit testing notes.

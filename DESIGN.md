@@ -1,93 +1,74 @@
-# AdBreak Arcade design notes
+# AdBreak Arcade design system
 
-AdBreak Arcade uses a quiet, premium arcade-instrument direction rather than a
-loud casino aesthetic. The main app is a light/dark Material-style surface with
-a violet primary accent, generous spacing, readable system typography, and
-short descriptive game cards. The notification is intentionally calmer: native
-System UI owns the outer shell, while the app supplies compact violet-accented
-controls and a separate expanded layout.
+AdBreak Arcade is a notification-first handheld arcade, not an ad blocker and
+not a conventional mobile game platform. The product identity combines warm
+editorial paper, industrial instrument labels, restrained arcade signals, and
+native Android surfaces.
 
-## Durable rules
+## Visual direction
 
-- Violet is the action color; it should not be used for every label.
-- Game state, score, and the next action must be visible before decorative copy.
-- App controls use native Android touch targets and honor system insets.
-- Notification content stays compact, quiet, and understandable without the app
-  being open.
-- Dark mode is a first-class palette, not an inverted screenshot.
+- **Light:** paper `#F5F4EF`, ink `#171717`, raised paper `#EAE9E3`, line
+  `#D6D5CE`.
+- **Dark:** charcoal `#151515`, surface `#202020`, raised surface `#292929`,
+  line `#45453F`.
+- **Action:** muted orange `#E56B45` in light mode and `#F0805B` in dark mode.
+  Orange marks actions, selection, and product status; it is not a page fill.
+- **Secondary signal:** muted olive is used for readiness and family hints.
+- **Type:** Manrope for interface copy, Newsreader for editorial emphasis, and
+  DM Mono for technical labels, scores, and metadata.
+- Avoid violet-led palettes, gradients, decorative blobs, glassmorphism,
+  gratuitous rounded cards, stock imagery, and generic SaaS language.
 
-## Smart App Trigger settings
+## Website rules
 
-- Treat Usage access as a sensitive, opt-in capability.
-- Show clear disabled, permission-needed, active, and unavailable states.
-- Explain that selected package names and trigger history are stored locally.
-- Provide explicit controls for disabling triggers and clearing selected apps.
-- Never imply ad detection or inspection of another app's content.
-- State that trigger timing is best effort rather than guaranteed immediate behavior.
+The website uses an asymmetric editorial grid, compact navigation, warm neutral
+surfaces, black/charcoal typography, thin rules, orange action marks, and real
+product interfaces as the visual story. The hero and demo must make the
+notification mechanism visible immediately.
 
-## Expanded library
+The notification demonstration is explicitly labelled a **website simulation**
+and implements actual tap, math, and higher/lower reducer logic. It supports
+compact and expanded views, game switching, reset, keyboard focus, responsive
+layout, and reduced-motion preferences. It never claims to be an OEM screenshot
+or a live Android notification.
 
-- Library count and cards come from `GameRegistry`, never hard-coded copy.
-- Every game exposes a concise title, description, and notification-sized actions.
-- Test long labels, emoji, Unicode symbols, large font scale, dark mode, and
-  collapsed/expanded notification layouts on actual System UI.
+The catalogue is sourced from the shared website registry (`content.ts`) and
+shows all 25 game entries with search, category filters, mechanics, and empty
+state recovery. Product claims must remain factual: local state, no account, no
+declared network permission, optional Smart App Triggers, no content inspection,
+no ad detection, no forced shade opening, and no guaranteed trigger timing.
 
-## Arcade upgrade system
+The production base path is `/adbreak-arcade/`. Semantic landmarks, visible
+focus, keyboard-operable controls, a mobile menu, theme persistence, system
+preference as the initial theme, metadata, Open Graph copy, and 48px primary
+targets are required. Animation is a hint, never the only way to understand the
+page.
 
-The Android hub now treats game presentation as a separate catalog from game
-rules. Each game receives a small family identity—Pulse, Logic, Words, Board,
-Code, or Focus—with an accent, motif, and readable text label. Color is a hint,
-never the only way to identify a family.
+## Android rules
 
-The home surface exposes local Arcade Level progress, recent play, favorites,
-and an explicit first-launch explanation. Progress is earned from accepted game
-actions and completed rounds only; preparing a notification or browsing screens
-does not earn progression. No game is locked behind the level.
+The native app keeps Kotlin, Android Views/XML, `GameRegistry`, the existing
+game interfaces, `SharedPreferences` state format, `NotificationCompat`,
+`RemoteViews`, immutable `PendingIntent` envelopes, and Smart App Trigger
+permission boundaries.
 
-Notification actions carry a session and render revision envelope. This keeps a
-button tied to the exact rendered state instead of only the current game, while
-the notification itself remains quiet, compact, and within RemoteViews limits.
+The launcher uses the same paper/charcoal/orange/olive family as the website:
+brand header, local level progress, continue-playing selection, notification
+availability, and recent play are prioritized before secondary settings.
+The library uses family accents and clear text labels; color is never the only
+identifier. Scores show records, session counts, and local progression without
+locking or gating games. Settings explain notification permission and Usage
+access before offering actions and provide system/light/dark theme override.
 
-### Gameplay polish
+The notification remains the core surface. It must stay within Android
+`RemoteViews` limits, keep objective/score/action hierarchy visible, support
+compact and expanded layouts, expose accessible labels, preserve session and
+render-revision safety, and remain legible in dark mode and large text. Android
+System UI controls the outer shell and OEM-specific presentation.
 
-Compact notifications use two text rows: the game/outcome and the current
-objective or result. Expanded notifications prioritize the actual problem,
-latest consequence and scarce resources. Long choices use two columns. A
-determinate bar is permitted only for a labeled, discrete game objective.
+## Smart App Triggers
 
-Board auxiliary actions occupy native notification action slots. Menu/details
-keeps lifecycle controls and full state available without opening the Activity.
-At large font scale (1.3+), nine-cell controls are paged by row through that menu.
-No hidden game turn, score or resource cost is attached to presentation navigation.
-Disabled controls retain explanatory accessibility labels. Success/error color
-always accompanies words, and notification animation never uses update loops.
-
-Personal records are separate from the active run and survive replay. The lobby
-shows an actual selected-run preview, while Scores distinguishes run summaries
-from records. See `reports/notification-polish-qa.md` for evidence and device gaps.
-
-## Website visual system
-
-The project website uses the same restrained violet identity as the Android app,
-expanded into a quiet intermission-console world: midnight instrument panels,
-fine calibration lines, compact mono state labels, and authored compact/expanded
-notification strata. Violet marks action and selection; it is not sprayed across
-every label. Light mode uses paper, ink, and lilac surfaces while dark mode uses
-midnight, raised card, and lavender text roles.
-
-The website's primary experience mode is **Persuade**. Its first viewport must
-make the notification mechanism visible, offer a working website demo, and keep
-the two honest actions—explore the games and inspect the source—above the fold.
-Conceptual notification artwork is labelled as such and never presented as an
-OEM screenshot. The published site uses `/adbreak-arcade/` as its Vite base path.
-
-Durable website rules:
-
-- Use semantic landmarks, visible focus, keyboard-operable controls, and 48px
-  target sizing for primary interactions.
-- Respect `prefers-reduced-motion`; reveal motion is enhancement, not required
-  content.
-- Keep Android limits visible: no ad detection claim, no forced shade opening,
-  no guaranteed trigger timing, and no promise of uninterrupted media playback.
-- Keep the verified debug APK clearly labelled as a testing artifact until
-  protected production signing exists.
+Triggers are disabled by default and require explicit app selection plus Usage
+access. They observe selected package foreground transitions only, store the
+selection locally, and operate on a best-effort lifecycle-polling basis. They do
+not inspect app content, identify advertisements, skip or manipulate ads, force
+open the notification shade, or promise instant behavior.
